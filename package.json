@@ -1,0 +1,100 @@
+{
+  "name": "roarverter",
+  "version": "0.1.0",
+  "description": "Roarverter: converts and compresses pictures, videos and sound, on your own computer. The Mad Lions Lab.",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron .",
+    "test": "node test/convert.test.js",
+    "postinstall": "node scripts/fetch-ffmpeg.js",
+    "dist:mac": "node scripts/fetch-ffmpeg.js darwin-arm64 darwin-x64 && node scripts/sharp-mac.js && electron-builder --mac dmg --arm64 --x64 --publish never",
+    "dist:win": "node scripts/fetch-ffmpeg.js win32-x64 && electron-builder --win --publish never"
+  },
+  "author": "THEMADLIONS",
+  "type": "commonjs",
+  "dependencies": {
+    "sharp": "^0.35.5"
+  },
+  "devDependencies": {
+    "electron": "45.0.0",
+    "electron-builder": "26.18.0"
+  },
+  "productName": "Roarverter",
+  "build": {
+    "appId": "com.themadlions.roarverter",
+    "productName": "Roarverter",
+    "npmRebuild": false,
+    "directories": {
+      "output": "out",
+      "buildResources": "build"
+    },
+    "files": [
+      "src/**/*",
+      "package.json",
+      "!node_modules/@img/sharp-wasm32/**"
+    ],
+    "asarUnpack": [
+      "node_modules/sharp/**",
+      "node_modules/@img/**"
+    ],
+    "mac": {
+      "target": [
+        "dmg"
+      ],
+      "category": "public.app-category.utilities",
+      "icon": "build/icon.png",
+      "identity": null,
+      "artifactName": "Roarverter-${version}-beta-Mac-${arch}.${ext}",
+      "extraResources": [
+        {
+          "from": "vendor/ffmpeg/darwin-${arch}",
+          "to": "bin",
+          "filter": [
+            "ffmpeg"
+          ]
+        }
+      ],
+      "files": [
+        "!node_modules/@img/sharp-win32*/**"
+      ]
+    },
+    "dmg": {
+      "artifactName": "Roarverter-${version}-beta-Mac-${arch}.${ext}",
+      "title": "Roarverter"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.png",
+      "artifactName": "Roarverter-${version}-beta-Windows-Setup.${ext}",
+      "extraResources": [
+        {
+          "from": "vendor/ffmpeg/win32-x64",
+          "to": "bin",
+          "filter": [
+            "ffmpeg.exe"
+          ]
+        }
+      ],
+      "files": [
+        "!node_modules/@img/sharp-darwin*/**",
+        "!node_modules/@img/sharp-libvips-darwin*/**"
+      ]
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "runAfterFinish": true,
+      "artifactName": "Roarverter-${version}-beta-Windows-Setup.${ext}"
+    },
+    "copyright": "Copyright © 2026 THEMADLIONS",
+    "afterPack": "./scripts/adhoc-sign.js"
+  },
+  "private": true
+}

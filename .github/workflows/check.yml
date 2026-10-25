@@ -1,0 +1,26 @@
+name: Check Roarverter
+
+# Every push and pull request: the scripts parse, and every conversion works on real files made with ffmpeg
+# (pictures in every format, videos, sound, a target size, trims, an upright video, the errors that must come back).
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --no-audit --no-fund
+      - name: Syntax of every script
+        run: |
+          for f in src/*.js scripts/*.js test/*.js; do node --check "$f"; done
+          node -e "require('./package.json')"
+      - name: Every conversion on real files
+        run: npm test

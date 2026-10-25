@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#121316"/><stop offset=".55" stop-color="#141417"/><stop offset="1" stop-color="#3a0f0d"/></linearGradient>
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="14" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>
+  <rect x="100" y="100" width="824" height="824" rx="185" fill="url(#bg)"/>
+  <rect x="100.5" y="100.5" width="823" height="823" rx="185" fill="none" stroke="#fff" stroke-opacity=".08" stroke-width="3"/>
+  <!-- the source: a picture -->
+  <rect x="236" y="300" width="300" height="236" rx="40" fill="none" stroke="#f2f2f0" stroke-width="34"/>
+  <circle cx="318" cy="380" r="26" fill="#f2f2f0"/>
+  <path d="M262 506 L372 422 L444 470 L520 414" fill="none" stroke="#f2f2f0" stroke-width="30" stroke-linejoin="round" stroke-linecap="round"/>
+  <!-- the result: a red frame with play -->
+  <g filter="url(#glow)">
+    <rect x="488" y="488" width="300" height="236" rx="40" fill="none" stroke="#ff453a" stroke-width="34"/>
+    <path d="M610 560 L700 606 L610 652 Z" fill="#ff453a" stroke="#ff453a" stroke-width="16" stroke-linejoin="round"/>
+  </g>
+  <!-- the turn between them -->
+  <path d="M600 300 C700 300 742 346 742 420" fill="none" stroke="#f2f2f0" stroke-width="30" stroke-linecap="round"/>
+  <path d="M704 392 L742 436 L780 392" fill="none" stroke="#f2f2f0" stroke-width="30" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M424 724 C324 724 282 678 282 604" fill="none" stroke="#ff453a" stroke-width="30" stroke-linecap="round"/>
+  <path d="M320 632 L282 588 L244 632" fill="none" stroke="#ff453a" stroke-width="30" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

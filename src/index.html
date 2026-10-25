@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' file: data:; media-src 'self' file:; style-src 'self' 'unsafe-inline'" />
+  <title>Roarverter</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<!-- English is the key of every text; the Greek is in renderer.js (EL). data-i18n: text, data-i18n-html: HTML,
+     data-i18n-ph: placeholder, data-i18n-label: an optgroup's label. -->
+<body>
+  <header class="top">
+    <div class="wm"><span>ROAR</span><b>VERTER</b></div>
+    <div class="spacer"></div>
+    <button class="btn sm upd" id="update" hidden><span class="chip tint"><i></i></span><span data-i18n>Restart to update</span></button>
+    <div class="chip tint" id="summary" hidden><i></i><span></span></div>
+    <div class="seg" id="lang">
+      <button data-v="en">EN</button>
+      <button data-v="el">GR</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="left">
+      <div class="hero" id="hero">
+        <h1 data-i18n-html>Every <b>format</b>.<br>A smaller <b>file</b>.</h1>
+        <p data-i18n>Pictures, videos and sound: convert and compress them, all on your own computer.</p>
+      </div>
+      <div id="drop" class="drop">
+        <div class="dz-i"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg></div>
+        <div class="drop-t"><b data-i18n>Drop pictures, videos, sound or folders here</b>
+        <small>JPG · PNG · WebP · AVIF · HEIC · TIFF · GIF · MP4 · MOV · MKV · WebM · AVI · MP3 …</small></div>
+        <button id="browse" class="btn" data-i18n>Choose files</button>
+      </div>
+
+      <div class="list-head" id="listHead" hidden>
+        <span id="count"></span>
+        <div class="list-actions">
+          <button id="addMore" class="btn sm" data-i18n>+ Add</button>
+          <button id="clearDone" class="btn sm" data-i18n>Clear finished</button>
+          <button id="clearAll" class="btn sm" data-i18n>Remove all</button>
+        </div>
+      </div>
+      <ul id="list" class="list"></ul>
+    </section>
+
+    <aside class="right">
+      <div class="presets">
+        <div class="label" data-i18n>Compression</div>
+        <div class="seg wide" id="presets">
+          <button data-preset="small" data-i18n>Small file</button>
+          <button data-preset="balanced" class="on" data-i18n>Balanced</button>
+          <button data-preset="quality" data-i18n>Quality</button>
+        </div>
+      </div>
+
+      <div class="seg wide" id="tabs">
+        <button data-tab="image" class="on"></button>
+        <button data-tab="video"></button>
+      </div>
+
+      <div class="panel" data-panel="image">
+        <label class="field">
+          <span data-i18n>Save as</span>
+          <select id="imgFormat">
+            <option value="original" data-i18n>Same as the original</option>
+            <option value="jpeg">JPG</option>
+            <option value="png">PNG</option>
+            <option value="webp">WebP</option>
+            <option value="avif">AVIF</option>
+            <option value="tiff">TIFF</option>
+            <option value="gif">GIF</option>
+            <option value="bmp">BMP</option>
+            <option value="ico" data-i18n>ICO (icon)</option>
+          </select>
+        </label>
+        <label class="field">
+          <span><span data-i18n>Quality</span> <b id="imgQualityVal"></b></span>
+          <input type="range" id="imgQuality" min="10" max="100" step="1" />
+          <small class="hint" data-i18n>Lower makes a smaller file. 100 is lossless (PNG, WebP, AVIF).</small>
+        </label>
+        <label class="field">
+          <span data-i18n>Largest side</span>
+          <select id="imgMaxDim">
+            <option value="0" data-i18n>Original</option>
+            <option value="3840">3840 px (4K)</option>
+            <option value="2560">2560 px</option>
+            <option value="1920">1920 px (Full HD)</option>
+            <option value="1280">1280 px</option>
+            <option value="1080">1080 px (Instagram)</option>
+            <option value="800">800 px</option>
+            <option value="512">512 px</option>
+            <option value="custom" data-i18n>Custom…</option>
+          </select>
+          <input type="number" id="imgMaxDimCustom" placeholder="px" min="16" hidden />
+        </label>
+        <label class="check"><input type="checkbox" id="imgKeepMeta" /><span data-i18n>Keep EXIF and metadata</span></label>
+      </div>
+
+      <div class="panel" data-panel="video" hidden>
+        <label class="field">
+          <span data-i18n>Save as</span>
+          <select id="vidFormat">
+            <optgroup label="Video" data-i18n-label>
+              <option value="mp4-h264" data-i18n>MP4 · H.264 (plays everywhere)</option>
+              <option value="mp4-h265" data-i18n>MP4 · H.265/HEVC (smaller)</option>
+              <option value="mp4-av1" data-i18n>MP4 · AV1 (smallest, slow)</option>
+              <option value="webm-vp9" data-i18n>WebM · VP9 (web)</option>
+              <option value="mov-h264">MOV · H.264</option>
+              <option value="mov-prores" data-i18n>MOV · ProRes (for editing)</option>
+              <option value="mkv-h264">MKV · H.264</option>
+              <option value="mkv-h265">MKV · H.265</option>
+              <option value="avi">AVI · MPEG-4</option>
+            </optgroup>
+            <optgroup label="Moving picture" data-i18n-label>
+              <option value="gif">GIF</option>
+              <option value="webp-anim" data-i18n>WebP (animated)</option>
+            </optgroup>
+            <optgroup label="Sound only" data-i18n-label>
+              <option value="mp3">MP3</option>
+              <option value="m4a">M4A · AAC</option>
+              <option value="wav">WAV</option>
+              <option value="flac">FLAC</option>
+              <option value="ogg">OGG · Opus</option>
+            </optgroup>
+            <optgroup label="A still (one frame)" data-i18n-label>
+              <option value="frame-jpg">JPG</option>
+              <option value="frame-png">PNG</option>
+            </optgroup>
+          </select>
+        </label>
+
+        <label class="field" data-show="video anim frame">
+          <span><span data-i18n>Quality</span> <b id="vidQualityVal"></b></span>
+          <input type="range" id="vidQuality" min="0" max="100" step="1" />
+        </label>
+
+        <label class="field" data-show="video frame">
+          <span data-i18n>Resolution</span>
+          <select id="vidRes">
+            <option value="0" data-i18n>Original</option>
+            <option value="2160">2160p (4K)</option>
+            <option value="1440">1440p</option>
+            <option value="1080">1080p (Full HD)</option>
+            <option value="720">720p (HD)</option>
+            <option value="480">480p</option>
+            <option value="360">360p</option>
+          </select>
+        </label>
+
+        <label class="field" data-show="anim">
+          <span data-i18n>Width</span>
+          <select id="gifWidth">
+            <option value="320">320 px</option>
+            <option value="480">480 px</option>
+            <option value="640">640 px</option>
+            <option value="800">800 px</option>
+            <option value="1080">1080 px</option>
+          </select>
+        </label>
+
+        <label class="field" data-show="video">
+          <span data-i18n>Target file size (optional)</span>
+          <div class="inline">
+            <input type="number" id="vidTarget" min="1" step="1" placeholder="e.g. 25" data-i18n-ph />
+            <span class="unit">MB</span>
+          </div>
+          <small class="hint" data-i18n>When set, the quality is left aside and the file aims at this size (25 MB for email or Discord, say).</small>
+        </label>
+
+        <label class="field" data-show="video">
+          <span data-i18n>Encoding speed</span>
+          <div class="seg wide" id="vidSpeed">
+            <button data-v="fast" data-i18n>Fast</button>
+            <button data-v="balanced" data-i18n>Normal</button>
+            <button data-v="small" data-i18n>Slow</button>
+          </div>
+        </label>
+
+        <div class="row2">
+          <label class="field" data-show="video anim">
+            <span>FPS</span>
+            <select id="vidFps">
+              <option value="0" data-i18n>Original</option>
+              <option value="60">60</option>
+              <option value="30">30</option>
+              <option value="25">25</option>
+              <option value="24">24</option>
+              <option value="15">15</option>
+              <option value="12">12</option>
+              <option value="10">10</option>
+            </select>
+          </label>
+          <label class="field" data-show="video audio">
+            <span data-i18n>Sound</span>
+            <select id="vidAudio">
+              <option value="320">320 kbps</option>
+              <option value="192">192 kbps</option>
+              <option value="128">128 kbps</option>
+              <option value="96">96 kbps</option>
+              <option value="64">64 kbps</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="row2">
+          <label class="field">
+            <span id="trimStartLabel"></span>
+            <input type="text" id="trimStart" placeholder="0:00" />
+          </label>
+          <label class="field" data-show="video anim audio">
+            <span data-i18n>End</span>
+            <input type="text" id="trimEnd" placeholder="the end" data-i18n-ph />
+          </label>
+        </div>
+
+        <label class="check" data-show="video"><input type="checkbox" id="vidNoAudio" /><span data-i18n>Remove the sound</span></label>
+        <label class="check" data-show="video"><input type="checkbox" id="vidKeepMeta" /><span data-i18n>Keep metadata</span></label>
+      </div>
+
+      <div class="output">
+        <div class="label" data-i18n>Save to</div>
+        <div class="seg wide" id="outMode">
+          <button data-v="same" data-i18n>Same folder</button>
+          <button data-v="custom" data-i18n>Another folder…</button>
+        </div>
+        <div class="outdir" id="outDir"></div>
+        <label class="field">
+          <span data-i18n>Added to the name</span>
+          <input type="text" id="suffix" placeholder="_converted" />
+        </label>
+      </div>
+
+      <div class="go">
+        <button id="start" class="btn main big" disabled data-i18n>Convert</button>
+        <button id="stop" class="btn stop big" hidden data-i18n>Stop</button>
+      </div>
+    </aside>
+  </main>
+
+  <script src="renderer.js"></script>
+</body>
+</html>
