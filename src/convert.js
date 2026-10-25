@@ -221,6 +221,7 @@ function crfFor(codec, q) {
     case 'libx264': return Math.round(16 + t * 20); // 16-36
     case 'libx265': return Math.round(18 + t * 20); // 18-38
     case 'libsvtav1': return Math.round(22 + t * 30); // 22-52
+    case 'libaom-av1': return Math.round(22 + t * 30); // 22-52
     case 'libvpx-vp9': return Math.round(20 + t * 30); // 20-50
     default: return null;
   }
@@ -230,8 +231,23 @@ const SPEED = {
   libx264: { fast: 'veryfast', balanced: 'medium', small: 'slow' },
   libx265: { fast: 'veryfast', balanced: 'medium', small: 'slow' },
   libsvtav1: { fast: '10', balanced: '7', small: '5' },
+  'libaom-av1': { fast: '8', balanced: '6', small: '4' },
   'libvpx-vp9': { fast: '5', balanced: '2', small: '1' },
 };
+
+// Not every static ffmpeg has the same AV1 encoder: the Apple Silicon one has SVT-AV1, the Intel Mac and Windows
+// ones only libaom. AV1 uses whichever this ffmpeg has.
+let encoders = null;
+function hasEncoder(name) {
+  encoders ??= new Promise((resolve) => {
+    execFile(FFMPEG, ['-hide_banner', '-encoders'], { maxBuffer: 10 * 1024 * 1024 }, (_e, out) => resolve(String(out || '')));
+  });
+  return encoders.then((list) => new RegExp(`\\s${name}\\s`).test(list));
+}
+async function videoEncoder(v) {
+  if (v === 'libsvtav1' && !(await hasEncoder('libsvtav1'))) return 'libaom-av1';
+  return v;
+}
 
 async function convertMedia(id, input, o, onProgress) {
   const f = VIDEO_FORMATS[o.format];
@@ -301,31 +317,32 @@ async function convertMedia(id, input, o, onProgress) {
   if (o.fps) vf.push(`fps=${o.fps}`);
   if (vf.length) args.push('-vf', vf.join(','));
 
-  args.push('-c:v', f.v);
-  const speed = SPEED[f.v]?.[o.speed || 'balanced'];
-  if (speed) args.push(f.v === 'libvpx-vp9' ? '-cpu-used' : '-preset', speed);
+  const v = await videoEncoder(f.v);
+  args.push('-c:v', v);
+  const speed = SPEED[v]?.[o.speed || 'balanced'];
+  if (speed) args.push(['libvpx-vp9', 'libaom-av1'].includes(v) ? '-cpu-used' : '-preset', speed);
 
   const audioKbps = o.removeAudio || !info.hasAudio ? 0 : o.audioBitrate || 128;
 
-  if (o.targetSizeMB && duration > 0 && f.v !== 'prores_ks') {
+  if (o.targetSizeMB && duration > 0 && v !== 'prores_ks') {
     // a target size: bitrate = size / length (4% left for the container)
     const totalKbps = (o.targetSizeMB * 8 * 1024 * 0.96) / duration;
     const vKbps = Math.max(50, Math.floor(totalKbps - audioKbps));
     args.push('-b:v', `${vKbps}k`, '-maxrate', `${Math.floor(vKbps * 1.2)}k`, '-bufsize', `${vKbps * 2}k`);
-    if (f.v === 'libvpx-vp9') args.push('-row-mt', '1');
-  } else if (f.v === 'prores_ks') {
+    if (['libvpx-vp9', 'libaom-av1'].includes(v)) args.push('-row-mt', '1');
+  } else if (v === 'prores_ks') {
     args.push('-profile:v', o.quality >= 80 ? '3' : o.quality >= 50 ? '2' : '0', '-pix_fmt', 'yuv422p10le');
-  } else if (f.v === 'mpeg4') {
+  } else if (v === 'mpeg4') {
     args.push('-q:v', String(Math.round(2 + (1 - o.quality / 100) * 18)));
   } else {
-    const crf = crfFor(f.v, o.quality);
+    const crf = crfFor(v, o.quality);
     args.push('-crf', String(crf));
-    if (f.v === 'libvpx-vp9') args.push('-b:v', '0', '-row-mt', '1');
+    if (['libvpx-vp9', 'libaom-av1'].includes(v)) args.push('-b:v', '0', '-row-mt', '1');
   }
 
-  if (['libx264', 'libx265'].includes(f.v)) args.push('-pix_fmt', 'yuv420p');
-  if (f.v === 'libx265' && f.ext !== 'mkv') args.push('-tag:v', 'hvc1'); // so QuickTime and iPhones play it
-  if (f.v === 'libsvtav1') args.push('-pix_fmt', 'yuv420p');
+  if (['libx264', 'libx265'].includes(v)) args.push('-pix_fmt', 'yuv420p');
+  if (v === 'libx265' && f.ext !== 'mkv') args.push('-tag:v', 'hvc1'); // so QuickTime and iPhones play it
+  if (['libsvtav1', 'libaom-av1'].includes(v)) args.push('-pix_fmt', 'yuv420p');
 
   if (audioKbps === 0) args.push('-an');
   else if (f.a === 'pcm_s16le') args.push('-c:a', f.a);
