@@ -132,7 +132,7 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 20px;
 
 .output { display: flex; flex-direction: column; gap: 10px; }
 .outdir { font-size: 12px; color: var(--muted); word-break: break-all; padding: 0 12px; }
-.go { margin-top: auto; position: sticky; bottom: 0; padding: 12px 0 18px; background: linear-gradient(transparent, var(--bg) 30%); }
+.go { margin-top: auto; position: sticky; bottom: 0; z-index: 2; padding: 12px 0 18px; background: #131519; box-shadow: 0 -22px 20px -6px #131519; }
 
 ::-webkit-scrollbar { width: 10px; }
 ::-webkit-scrollbar-thumb { background: rgba(255,255,255,.1); border-radius: 10px; border: 3px solid transparent; background-clip: padding-box; }
