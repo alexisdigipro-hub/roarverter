@@ -79,6 +79,12 @@ ipcMain.handle('pick-files', async (_e, lang) => {
   return r.canceled ? [] : r.filePaths;
 });
 
+// a LUT for the look: .cube from Resolve and most tools, also .3dl, .dat and .csp
+ipcMain.handle('pick-lut', async () => {
+  const r = await dialog.showOpenDialog(win, { properties: ['openFile'], filters: [{ name: 'LUT', extensions: ['cube', '3dl', 'dat', 'csp'] }] });
+  return r.canceled ? null : r.filePaths[0];
+});
+
 ipcMain.handle('pick-folder', async () => {
   const r = await dialog.showOpenDialog(win, { properties: ['openDirectory', 'createDirectory'] });
   return r.canceled ? null : r.filePaths[0];

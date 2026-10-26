@@ -12,6 +12,9 @@ text goes through `t()` or a data-i18n attribute and gets its Greek.
   ICO, and any picture sharp cannot read). On a Mac the system's `sips` reads HEIC, RAW, PSD, EXR, JPEG XL and PDF and
   writes HEIC; on Windows those say so in a clear error. Change it only with `npm test` passing, with the Apple
   Silicon ffmpeg and with `FFMPEG=vendor/ffmpeg/darwin-x64/ffmpeg npm test` (Intel and Windows have no SVT-AV1).
+- Every picture goes through one filter graph, `pictureGraph()` in convert.js, from [0:v] to [v]: desqueeze, HDR to
+  Rec.709 (zscale + tonemap, only when the source's transfer is HLG or PQ), LUT, reframe, size, frame rate. New
+  picture options belong there, so stills, GIFs and videos all get them.
 - The static ffmpegs differ: only the Apple Silicon one has SVT-AV1 (AV1 falls back to libaom); VideoToolbox is in
   both Mac ones (the `hw` option, with a software retry). Check `-encoders` before using a new encoder.
 - ffmpeg is a static binary per platform in `vendor/ffmpeg/<platform>-<arch>/` (scripts/fetch-ffmpeg.js, run by

@@ -222,3 +222,15 @@ input[type=range]:disabled { opacity: .35; }
 .chips.groups button i { position: absolute; top: 5px; right: 5px; width: 6px; height: 6px; border-radius: 50%; background: var(--acc); }
 /* the groups that come and go keep the card's own spacing */
 .panel > div[data-show] { display: flex; flex-direction: column; gap: 12px; }
+
+/* 0.3.0: a size of your own, the LUT, what each box holds when it is closed */
+.wh { margin-top: 2px; }
+.wh input { text-align: center; }
+.lut { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.lut .chip { height: 30px; padding-right: 4px; max-width: 100%; }
+.lut .chip > span { overflow: hidden; text-overflow: ellipsis; max-width: 200px; }
+.lut .x { width: 22px; height: 22px; border: 0; border-radius: 50%; background: rgba(255,255,255,.08); color: var(--muted); font-size: 15px; line-height: 1; padding: 0; }
+.lut .x:hover { background: rgba(255,255,255,.16); color: var(--text); }
+.more summary > span { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.more summary em { font-style: normal; font-size: 11.5px; color: var(--acc); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.more[open] summary em { display: none; }

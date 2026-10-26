@@ -111,6 +111,12 @@
           <div data-show="video pro fixed frame">
             <div class="label" data-i18n>Resolution</div>
             <div class="chips" id="vidRes"></div>
+            <div class="inline wh" id="customSize" hidden>
+              <input type="number" id="vidWidth" min="16" step="2" placeholder="1920" />
+              <span class="unit">×</span>
+              <input type="number" id="vidHeight" min="16" step="2" placeholder="1080" />
+              <span class="unit">px</span>
+            </div>
           </div>
           <div data-show="anim">
             <div class="label" data-i18n>Width</div>
@@ -119,17 +125,85 @@
 
           <label class="check" data-show="video" id="hwRow"><input type="checkbox" id="hw" /><span><span data-i18n>Mac hardware encoding</span><small data-i18n>Several times faster, a little bigger.</small></span></label>
 
+          <!-- the picture: colour and frame -->
+          <details class="more" id="lookBox" data-show="video pro fixed anim frame">
+            <summary><span><span data-i18n>Look &amp; frame</span><em id="lookSum"></em></span><svg viewBox="0 0 24 24"><path d="M7 10l5 5 5-5"/></svg></summary>
+            <div class="more-in">
+              <label class="check"><input type="checkbox" id="hdrToSdr" /><span><span data-i18n>HDR to Rec.709</span><small data-i18n>iPhone and HDR videos look right everywhere, not grey.</small></span></label>
+              <div>
+                <div class="label" data-i18n>LUT</div>
+                <div class="lut">
+                  <button class="btn sm" id="lutPick"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor"/></svg><span data-i18n>Choose a .cube…</span></button>
+                  <span class="chip tint" id="lutChip" hidden><i></i><span id="lutName"></span><button class="x" id="lutClear" aria-label="Remove">×</button></span>
+                </div>
+              </div>
+              <div>
+                <div class="label" data-i18n>Frame</div>
+                <div class="chips" id="aspect"></div>
+              </div>
+              <div class="seg wide" id="reframe" hidden>
+                <button data-v="crop" data-i18n>Crop</button>
+                <button data-v="fit" data-i18n>Fit, blurred edges</button>
+              </div>
+              <div>
+                <div class="label" data-i18n>Anamorphic</div>
+                <div class="chips" id="desqueeze"></div>
+              </div>
+            </div>
+          </details>
+
+          <!-- the sound -->
+          <details class="more" id="soundBox" data-show="video pro fixed audio">
+            <summary><span><span data-i18n>Sound</span><em id="soundSum"></em></span><svg viewBox="0 0 24 24"><path d="M7 10l5 5 5-5"/></svg></summary>
+            <div class="more-in">
+              <div>
+                <div class="label" data-i18n>Loudness</div>
+                <div class="chips" id="loudness"></div>
+              </div>
+              <div>
+                <div class="label" data-i18n>Channels</div>
+                <div class="chips" id="channels"></div>
+              </div>
+              <div>
+                <div class="label" data-i18n>Sample rate</div>
+                <div class="chips" id="sampleRate"></div>
+              </div>
+              <label class="field" id="bitrateRow">
+                <span data-i18n>Bitrate</span>
+                <select id="vidAudio">
+                  <option value="320">320 kbps</option>
+                  <option value="256">256 kbps</option>
+                  <option value="192">192 kbps</option>
+                  <option value="128">128 kbps</option>
+                  <option value="96">96 kbps</option>
+                  <option value="64">64 kbps</option>
+                </select>
+              </label>
+              <label class="check" data-show="video pro fixed"><input type="checkbox" id="vidNoAudio" /><span data-i18n>Remove the sound</span></label>
+            </div>
+          </details>
+
           <details class="more" id="more">
             <summary><span data-i18n>More options</span><svg viewBox="0 0 24 24"><path d="M7 10l5 5 5-5"/></svg></summary>
             <div class="more-in">
-              <label class="field" data-show="video">
-                <span data-i18n>Target file size</span>
-                <div class="inline">
-                  <input type="number" id="vidTarget" min="1" step="1" placeholder="e.g. 25" data-i18n-ph />
-                  <span class="unit">MB</span>
-                </div>
-                <small class="hint" data-i18n>When set, the quality is left aside and the file aims at this size (25 MB for email or Discord, say).</small>
-              </label>
+              <div class="row2" data-show="video">
+                <label class="field">
+                  <span data-i18n>Target size</span>
+                  <div class="inline">
+                    <input type="number" id="vidTarget" min="1" step="1" placeholder="e.g. 25" data-i18n-ph />
+                    <span class="unit">MB</span>
+                  </div>
+                </label>
+                <label class="field">
+                  <span data-i18n>Or a bitrate</span>
+                  <div class="inline">
+                    <input type="number" id="bitrateMbps" min="0.1" step="0.5" placeholder="e.g. 8" data-i18n-ph />
+                    <span class="unit">Mb/s</span>
+                  </div>
+                </label>
+              </div>
+              <small class="hint" data-show="video" data-i18n>When either is set, the quality is left aside: a size for email or Discord, a bitrate as Resolve’s “Restrict to”.</small>
+              <label class="check" data-show="video" id="twoPassRow"><input type="checkbox" id="twoPass" /><span><span data-i18n>Two passes</span><small data-i18n>Lands on the size or bitrate, takes twice as long.</small></span></label>
               <div data-show="video">
                 <div class="label" data-i18n>Encoding speed</div>
                 <div class="seg wide" id="vidSpeed">
@@ -153,16 +227,12 @@
                     <option value="10">10</option>
                   </select>
                 </label>
-                <label class="field" data-show="video audio" id="bitrateRow">
-                  <span data-i18n>Sound</span>
-                  <select id="vidAudio">
-                    <option value="320">320 kbps</option>
-                    <option value="256">256 kbps</option>
-                    <option value="192">192 kbps</option>
-                    <option value="128">128 kbps</option>
-                    <option value="96">96 kbps</option>
-                    <option value="64">64 kbps</option>
-                  </select>
+                <label class="field" data-show="video">
+                  <span data-i18n>Keyframe every</span>
+                  <div class="inline">
+                    <input type="number" id="keyframes" min="1" step="1" placeholder="auto" data-i18n-ph />
+                    <span class="unit" data-i18n>frames</span>
+                  </div>
                 </label>
               </div>
               <div class="row2">
@@ -175,7 +245,6 @@
                   <input type="text" id="trimEnd" placeholder="the end" data-i18n-ph />
                 </label>
               </div>
-              <label class="check" data-show="video pro fixed"><input type="checkbox" id="vidNoAudio" /><span data-i18n>Remove the sound</span></label>
               <label class="check" data-show="video pro fixed"><input type="checkbox" id="vidKeepMeta" /><span data-i18n>Keep metadata</span></label>
             </div>
           </details>

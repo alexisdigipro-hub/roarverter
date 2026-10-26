@@ -18,6 +18,11 @@ ff('-f', 'lavfi', '-i', 'testsrc2=size=1080x1920:rate=30:duration=3', '-c:v', 'l
 ff('-f', 'lavfi', '-i', 'mandelbrot=size=3000x2000', '-frames:v', '1', path.join(T, 'photo.png'));
 ff('-i', path.join(T, 'photo.png'), path.join(T, 'photo.bmp'));
 ff('-i', path.join(T, 'photo.png'), '-c:v', 'exr', '-pix_fmt', 'gbrpf32le', path.join(T, 'photo.exr'));
+// an HLG clip, as an iPhone records it
+ff('-f', 'lavfi', '-i', 'testsrc2=size=1920x1080:rate=25:duration=2', '-vf', 'zscale=pin=bt709:tin=bt709:min=bt709:p=bt2020:t=arib-std-b67:m=bt2020nc,format=yuv420p10le',
+  '-c:v', 'libx265', '-x265-params', 'log-level=error', '-color_primaries', 'bt2020', '-color_trc', 'arib-std-b67', '-colorspace', 'bt2020nc', path.join(T, 'hlg.mov'));
+// a LUT that makes everything red
+fs.writeFileSync(path.join(T, 'red look.cube'), 'LUT_3D_SIZE 2\n' + '1.0 0.0 0.0\n'.repeat(8));
 ff('-i', path.join(T, 'photo.png'), path.join(T, 'photo.dpx'));
 const mac = process.platform === 'darwin';
 const heic = mac;
@@ -75,6 +80,22 @@ const jobs = [
   ['video', 'test video.mov', { format: 'frame-jpg', quality: 80, trimStart: 2 }, { w: 1920 }],
   ['video', 'vertical.mp4', { format: 'mp4-h264', quality: 60, resolution: 720, speed: 'fast' }, { w: 720, h: 1280 }],
   ['video', 'vertical.mp4', { format: 'mp3' }, { error: 'The file has no sound' }],
+  // 0.3.0: the look, the frame, the size, the bitrate, the sound
+  ['video', 'hlg.mov', { format: 'mp4-h264', quality: 60, speed: 'fast' }, { w: 1920, transfer: 'bt709' }],
+  ['video', 'hlg.mov', { format: 'mp4-h265', quality: 60, speed: 'fast', hdrToSdr: false }, { w: 1920, transfer: 'arib-std-b67' }],
+  ['video', 'test video.mov', { format: 'frame-png', trimStart: 1, lut: path.join(T, 'red look.cube') }, { w: 1920, red: true }],
+  ['video', 'test video.mov', { format: 'mp4-h264', quality: 60, speed: 'fast', lut: path.join(T, 'red look.cube'), aspect: '9:16' }, { w: 608, h: 1080 }],
+  ['video', 'test video.mov', { format: 'mp4-h264', quality: 60, speed: 'fast', aspect: '9:16', reframe: 'fit' }, { w: 1080, h: 1920, audio: true }],
+  ['video', 'test video.mov', { format: 'mp4-h264', quality: 60, speed: 'fast', aspect: '1:1' }, { w: 1080, h: 1080 }],
+  ['video', 'test video.mov', { format: 'mp4-h264', quality: 60, speed: 'fast', aspect: '4:5', reframe: 'fit', resolution: 720 }, { w: 720, h: 900 }],
+  ['video', 'test video.mov', { format: 'mov-prores', profile: 'proxy', desqueeze: 2 }, { w: 3840, h: 1080 }],
+  ['video', 'vertical.mp4', { format: 'mp4-h264', quality: 60, speed: 'fast', width: 1280, height: 720 }, { w: 1280, h: 720 }],
+  ['video', 'test video.mov', { format: 'mp4-h264', bitrateMbps: 1, speed: 'fast', audioBitrate: 96 }, { maxBytes: 0.95 * 1024 * 1024 }],
+  ['video', 'test video.mov', { format: 'mp4-h264', targetSizeMB: 1, twoPass: true, speed: 'fast', audioBitrate: 96 }, { minBytes: 0.85 * 1024 * 1024, maxBytes: 1.02 * 1024 * 1024 }],
+  ['video', 'test video.mov', { format: 'mp4-h265', targetSizeMB: 1, twoPass: true, speed: 'fast', audioBitrate: 96 }, { minBytes: 0.8 * 1024 * 1024, maxBytes: 1.05 * 1024 * 1024 }],
+  ['video', 'test video.mov', { format: 'mp4-h264', quality: 60, speed: 'fast', keyframes: 25 }, { w: 1920, d: 6 }],
+  ['video', 'test video.mov', { format: 'mp3', loudness: -14, channels: 1, audioBitrate: 128 }, { d: 6, channels: 'mono', rate: 48000 }],
+  ['video', 'test video.mov', { format: 'mp4-h264', quality: 60, speed: 'fast', loudness: -23, channels: 2, sampleRate: 44100 }, { channels: 'stereo', rate: 44100 }],
   ['video', 'test video.mov', { format: 'nope' }, { error: 'Unknown format' }],
 ];
 
@@ -99,6 +120,11 @@ const jobs = [
       if (want.codec && p.vcodec !== want.codec) bad.push(`codec ${p.vcodec}, not ${want.codec}`);
       if (want.acodec && p.acodec !== want.acodec) bad.push(`sound ${p.acodec}, not ${want.acodec}`);
       if (want.maxBytes && size > want.maxBytes) bad.push(`${size} bytes, over the target`);
+      if (want.minBytes && size < want.minBytes) bad.push(`${size} bytes, far under the target`);
+      if (want.transfer && p.transfer !== want.transfer) bad.push(`transfer ${p.transfer}, not ${want.transfer}`);
+      if (want.channels && p.channels !== want.channels) bad.push(`${p.channels}, not ${want.channels}`);
+      if (want.rate && p.sampleRate !== want.rate) bad.push(`${p.sampleRate} Hz, not ${want.rate}`);
+      if (want.red) { const st = await require('sharp')(out).stats(); const [r, g, b] = st.channels.map((ch) => ch.mean); if (!(r > 200 && g < 40 && b < 40)) bad.push(`not red: ${Math.round(r)},${Math.round(g)},${Math.round(b)}`); }
       if (bad.length) { failed++; console.log(`✗ ${label}: ${bad.join(', ')}`); } else console.log(`✓ ${label} (${Math.round(size / 1024)} KB)`);
     } catch (e) {
       if (want.error && e.message.startsWith(want.error)) console.log(`✓ ${label}: ${e.message}`);

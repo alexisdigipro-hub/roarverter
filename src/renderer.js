@@ -100,7 +100,12 @@ const PROFILES = {
   prores: [['proxy', 'Proxy'], ['lt', 'LT'], ['422', '422'], ['hq', 'HQ'], ['4444', '4444']],
   dnxhr: [['lb', 'LB'], ['sq', 'SQ'], ['hq', 'HQ'], ['hqx', 'HQX'], ['444', '444']],
 };
-const RESOLUTIONS = [['0', 'Original'], ['2160', '4K'], ['1440', '1440p'], ['1080', '1080p'], ['720', '720p'], ['480', '480p']];
+const RESOLUTIONS = [['0', 'Original'], ['2160', '4K'], ['1440', '1440p'], ['1080', '1080p'], ['720', '720p'], ['480', '480p'], ['custom', 'Custom…']];
+const ASPECTS = [['', 'Original'], ['16:9', '16:9'], ['9:16', '9:16'], ['1:1', '1:1'], ['4:5', '4:5'], ['2.39:1', '2.39:1']];
+const DESQUEEZE = [['0', 'None'], ['1.33', '1.33×'], ['1.5', '1.5×'], ['1.8', '1.8×'], ['2', '2×']];
+const LOUDNESS = [['0', 'Off'], ['-14', '−14 LUFS · web'], ['-16', '−16 · podcast'], ['-23', '−23 · TV']];
+const CHANNELS = [['0', 'Original'], ['2', 'Stereo'], ['1', 'Mono']];
+const RATES = [['0', 'Original'], ['44100', '44.1 kHz'], ['48000', '48 kHz']];
 const IMG_DIMS = [['0', 'Original'], ['3840', '4K'], ['2560', '2560'], ['1920', '1920'], ['1080', '1080'], ['800', '800'], ['custom', 'Custom…']];
 const GIF_WIDTHS = [['320', '320'], ['480', '480'], ['640', '640'], ['800', '800'], ['1080', '1080']];
 
@@ -122,6 +127,8 @@ const DEFAULTS = {
   vidFormat: 'mp4-h264', vidQuality: 60, vidRes: '0', gifWidth: '480', vidTarget: '', vidSpeed: 'balanced',
   vidFps: '0', vidAudio: '128', vidNoAudio: false, vidKeepMeta: false, trimStart: '', trimEnd: '',
   proresProfile: '422', dnxhrProfile: 'hq', hw: false,
+  vidWidth: '', vidHeight: '', hdrToSdr: true, lutPath: '', aspect: '', reframe: 'crop', desqueeze: '0',
+  loudness: '0', channels: '0', sampleRate: '0', bitrateMbps: '', twoPass: false, keyframes: '',
   outMode: 'same', outDir: '', suffix: '_converted',
 };
 
@@ -130,7 +137,7 @@ try { S = { ...DEFAULTS, ...JSON.parse(localStorage.getItem('settings') || '{}')
 const save = () => { try { localStorage.setItem('settings', JSON.stringify(S)); } catch {} };
 
 // ---------- Words: English is the key, Greek the choice (as in the other Roar apps) ----------
-const EL = {"Restart to update": "Επανεκκίνηση για ενημέρωση", "Every <b>format</b>.<br>A smaller <b>file</b>.": "Κάθε <b>μορφή</b>.<br>Μικρότερο <b>αρχείο</b>.", "Pictures, videos and sound: convert and compress them, all on your own computer.": "Εικόνες, βίντεο και ήχος: μετατροπή και συμπίεση, όλα τοπικά στον υπολογιστή σου.", "Drop pictures, videos, sound or folders here": "Σύρε εδώ εικόνες, βίντεο, ήχο ή φακέλους", "Choose files": "Επιλογή αρχείων", "Add": "Προσθήκη", "Clear finished": "Καθαρισμός ολοκληρωμένων", "Remove all": "Αφαίρεση όλων", "Drop more anywhere on the window": "Ρίξε κι άλλα οπουδήποτε στο παράθυρο", "Drop to add": "Άφησέ τα για να προστεθούν", "Compression": "Συμπίεση", "Small file": "Μικρό αρχείο", "Balanced": "Ισορροπία", "Quality": "Ποιότητα", "Save as": "Μορφή εξόδου", "Profile": "Προφίλ", "Largest side": "Μεγάλη πλευρά", "Resolution": "Ανάλυση", "Width": "Πλάτος", "Original": "Αρχική", "Custom…": "Δική σου…", "Keep EXIF and metadata": "Διατήρηση EXIF και μεταδεδομένων", "Mac hardware encoding": "Κωδικοποίηση με το hardware του Mac", "Several times faster, a little bigger.": "Πολλές φορές πιο γρήγορα, λίγο μεγαλύτερο αρχείο.", "More options": "Περισσότερες επιλογές", "Target file size": "Στόχος μεγέθους αρχείου", "e.g. 25": "π.χ. 25", "When set, the quality is left aside and the file aims at this size (25 MB for email or Discord, say).": "Αν οριστεί, αγνοείται η ποιότητα και η συμπίεση στοχεύει σε αυτό το μέγεθος (π.χ. 25 MB για email ή Discord).", "Encoding speed": "Ταχύτητα κωδικοποίησης", "Fast": "Γρήγορη", "Normal": "Κανονική", "Slow": "Αργή", "Sound": "Ήχος", "End": "Τέλος", "the end": "τέλος", "Remove the sound": "Αφαίρεση ήχου", "Keep metadata": "Διατήρηση μεταδεδομένων", "Save to": "Αποθήκευση σε", "Same folder": "Ίδιο φάκελο", "Another folder…": "Άλλο φάκελο…", "Added to the name": "Κατάληξη ονόματος", "Stop": "Διακοπή", "Next to the original file": "Δίπλα στο αρχικό αρχείο", "At": "Χρονική στιγμή", "Start": "Αρχή", "Pictures": "Εικόνες", "Video & Sound": "Βίντεο & Ήχος", "Waiting": "Σε αναμονή", "Open": "Άνοιγμα", "Show in the folder": "Εμφάνιση στον φάκελο", "Cancel": "Ακύρωση", "Remove": "Αφαίρεση", "{n} files · {size}": "{n} αρχεία · {size}", "{a}/{b} done · saved {s}": "{a}/{b} έτοιμα · κερδήθηκαν {s}", "Convert": "Μετατροπή", "Convert 1 file": "Μετατροπή 1 αρχείου", "Convert {n} files": "Μετατροπή {n} αρχείων", "Ready · {f}": "Έτοιμο · {f}", "Cancelled": "Ακυρώθηκε", "The file has no sound": "Το αρχείο δεν έχει ήχο", "The file has no picture": "Το αρχείο δεν έχει εικόνα", "The file has no video": "Το αρχείο δεν έχει εικόνα βίντεο", "Cannot read the picture": "Δεν διαβάζεται η εικόνα", "Cannot save in this format": "Δεν γίνεται αποθήκευση σε αυτή τη μορφή", "Unknown format": "Άγνωστη μορφή", "Opens only on a Mac for now": "Ανοίγει μόνο σε Mac προς το παρόν", "HEIC can be saved only on a Mac": "Το HEIC σώζεται μόνο σε Mac", "<b>{n} left out:</b> {names}. Roarverter does not read these files.": "<b>{n} έμειναν έξω:</b> {names}. Το Roarverter δεν διαβάζει αυτά τα αρχεία.", "<b>{n} left out:</b> {names}. RAW, JPEG XL and PDF open only on a Mac for now.": "<b>{n} έμειναν έξω:</b> {names}. Τα RAW, JPEG XL και PDF ανοίγουν μόνο σε Mac προς το παρόν.", "Same": "Ίδια", "print": "εκτύπωση", "uncompressed": "χωρίς συμπίεση", "from a clip": "από ένα clip", "animated": "κινούμενο", "everywhere": "παντού", "lossless": "χωρίς απώλειες", "one frame": "ένα καρέ", "Keeps each picture’s own format, only smaller.": "Κρατά τη μορφή κάθε εικόνας, μόνο μικρότερη.", "The safest choice for photos: every phone, browser and app opens it.": "Η πιο σίγουρη επιλογή για φωτογραφίες: την ανοίγει κάθε κινητό, browser και εφαρμογή.", "About a third smaller than JPG, for websites.": "Περίπου ένα τρίτο μικρότερο από το JPG, για sites.", "The smallest for the web; recent browsers only.": "Το μικρότερο για το web· μόνο σε πρόσφατους browsers.", "What iPhones use: half the size of JPG. Made with the Mac’s own tools.": "Αυτό που χρησιμοποιούν τα iPhone: το μισό του JPG. Φτιάχνεται με τα εργαλεία του ίδιου του Mac.", "Sharp edges and transparency, for logos and screenshots.": "Καθαρές άκρες και διαφάνεια, για λογότυπα και screenshots.", "For print and retouching.": "Για εκτύπωση και ρετούς.", "Few colours; use WebP for anything new.": "Λίγα χρώματα· για κάτι καινούργιο προτίμησε WebP.", "Uncompressed, for old software.": "Χωρίς συμπίεση, για παλιά προγράμματα.", "An icon up to 256 px, for Windows and websites.": "Εικονίδιο ως 256 px, για Windows και sites.", "Plays everywhere: phones, the web, every editor.": "Παίζει παντού: κινητά, web, κάθε πρόγραμμα μοντάζ.", "Half the size of H.264 for the same picture; every recent phone and computer plays it.": "Το μισό του H.264 για την ίδια εικόνα· το παίζει κάθε πρόσφατο κινητό και υπολογιστής.", "The smallest of all, slow to make; recent browsers and phones.": "Το μικρότερο απ’ όλα, αργό στη δημιουργία· πρόσφατοι browsers και κινητά.", "For websites; Chrome, Firefox and Edge.": "Για sites· Chrome, Firefox και Edge.", "H.264 in QuickTime’s own file.": "H.264 στο αρχείο του QuickTime.", "H.265 in MKV, for media players and archives.": "H.265 σε MKV, για media players και αρχεία.", "H.264 in MKV, for media players.": "H.264 σε MKV, για media players.", "For old players and TVs.": "Για παλιά players και τηλεοράσεις.", "MPEG-2, for DVD authoring and old TV systems.": "MPEG-2, για DVD και παλιά τηλεοπτικά συστήματα.", "Apple’s editing codec: Final Cut, Premiere, Resolve. Big files, light to edit.": "Ο codec μοντάζ της Apple: Final Cut, Premiere, Resolve. Μεγάλα αρχεία, ελαφριά στο μοντάζ.", "Avid’s editing codec in a QuickTime file, for Resolve and Premiere.": "Ο codec μοντάζ της Avid σε αρχείο QuickTime, για Resolve και Premiere.", "DNxHR in MXF, as Avid Media Composer likes it. Sound at 24-bit 48 kHz.": "DNxHR σε MXF, όπως το θέλει το Avid Media Composer. Ήχος 24-bit 48 kHz.", "XDCAM HD422, 50 Mbit/s: what broadcasters ask for. Sound at 24-bit 48 kHz.": "XDCAM HD422, 50 Mbit/s: αυτό που ζητούν τα κανάλια. Ήχος 24-bit 48 kHz.", "Lossless, for an archive: every frame exactly as it was, smaller than uncompressed.": "Χωρίς απώλειες, για αρχειοθέτηση: κάθε καρέ ακριβώς όπως ήταν, μικρότερο από ασυμπίεστο.", "A moving picture far smaller than GIF.": "Κινούμενη εικόνα πολύ μικρότερη από GIF.", "Plays everywhere.": "Παίζει παντού.", "AAC: smaller than MP3 at the same quality.": "AAC: μικρότερο από MP3 στην ίδια ποιότητα.", "For the mix: 24-bit, 48 kHz, uncompressed.": "Για τη μίξη: 24-bit, 48 kHz, ασυμπίεστο.", "CD quality, uncompressed.": "Ποιότητα CD, ασυμπίεστο.", "Uncompressed, the Mac’s own; 24-bit.": "Ασυμπίεστο, του Mac· 24-bit.", "Lossless and half the size of WAV; Apple Music and iPhone.": "Χωρίς απώλειες και το μισό του WAV· Apple Music και iPhone.", "Lossless and half the size of WAV.": "Χωρίς απώλειες και το μισό του WAV.", "Opus: the smallest for speech and music.": "Opus: το μικρότερο για ομιλία και μουσική.", "One frame as a JPG, at the moment you set in More options.": "Ένα καρέ σε JPG, τη στιγμή που ορίζεις στις Περισσότερες επιλογές.", "One frame as a PNG, at the moment you set in More options.": "Ένα καρέ σε PNG, τη στιγμή που ορίζεις στις Περισσότερες επιλογές.", "as original": "όπως το αρχικό", "photos": "φωτογραφίες", "web": "web", "smallest": "το μικρότερο", "transparency": "διαφάνεια", "moving": "κινούμενο", "icon": "εικονίδιο", "Share": "Κοινοποίηση", "Edit": "Μοντάζ", "Moving": "Κίνηση", "Still": "Στιγμιότυπο", "{a}/{b} done": "{a}/{b} έτοιμα"};
+const EL = {"Restart to update": "Επανεκκίνηση για ενημέρωση", "Every <b>format</b>.<br>A smaller <b>file</b>.": "Κάθε <b>μορφή</b>.<br>Μικρότερο <b>αρχείο</b>.", "Pictures, videos and sound: convert and compress them, all on your own computer.": "Εικόνες, βίντεο και ήχος: μετατροπή και συμπίεση, όλα τοπικά στον υπολογιστή σου.", "Drop pictures, videos, sound or folders here": "Σύρε εδώ εικόνες, βίντεο, ήχο ή φακέλους", "Choose files": "Επιλογή αρχείων", "Add": "Προσθήκη", "Clear finished": "Καθαρισμός ολοκληρωμένων", "Remove all": "Αφαίρεση όλων", "Drop more anywhere on the window": "Ρίξε κι άλλα οπουδήποτε στο παράθυρο", "Drop to add": "Άφησέ τα για να προστεθούν", "Compression": "Συμπίεση", "Small file": "Μικρό αρχείο", "Balanced": "Ισορροπία", "Quality": "Ποιότητα", "Save as": "Μορφή εξόδου", "Profile": "Προφίλ", "Largest side": "Μεγάλη πλευρά", "Resolution": "Ανάλυση", "Width": "Πλάτος", "Original": "Αρχική", "Custom…": "Δική σου…", "Keep EXIF and metadata": "Διατήρηση EXIF και μεταδεδομένων", "Mac hardware encoding": "Κωδικοποίηση με το hardware του Mac", "Several times faster, a little bigger.": "Πολλές φορές πιο γρήγορα, λίγο μεγαλύτερο αρχείο.", "More options": "Περισσότερες επιλογές", "Target file size": "Στόχος μεγέθους αρχείου", "e.g. 25": "π.χ. 25", "When set, the quality is left aside and the file aims at this size (25 MB for email or Discord, say).": "Αν οριστεί, αγνοείται η ποιότητα και η συμπίεση στοχεύει σε αυτό το μέγεθος (π.χ. 25 MB για email ή Discord).", "Encoding speed": "Ταχύτητα κωδικοποίησης", "Fast": "Γρήγορη", "Normal": "Κανονική", "Slow": "Αργή", "Sound": "Ήχος", "End": "Τέλος", "the end": "τέλος", "Remove the sound": "Αφαίρεση ήχου", "Keep metadata": "Διατήρηση μεταδεδομένων", "Save to": "Αποθήκευση σε", "Same folder": "Ίδιο φάκελο", "Another folder…": "Άλλο φάκελο…", "Added to the name": "Κατάληξη ονόματος", "Stop": "Διακοπή", "Next to the original file": "Δίπλα στο αρχικό αρχείο", "At": "Χρονική στιγμή", "Start": "Αρχή", "Pictures": "Εικόνες", "Video & Sound": "Βίντεο & Ήχος", "Waiting": "Σε αναμονή", "Open": "Άνοιγμα", "Show in the folder": "Εμφάνιση στον φάκελο", "Cancel": "Ακύρωση", "Remove": "Αφαίρεση", "{n} files · {size}": "{n} αρχεία · {size}", "{a}/{b} done · saved {s}": "{a}/{b} έτοιμα · κερδήθηκαν {s}", "Convert": "Μετατροπή", "Convert 1 file": "Μετατροπή 1 αρχείου", "Convert {n} files": "Μετατροπή {n} αρχείων", "Ready · {f}": "Έτοιμο · {f}", "Cancelled": "Ακυρώθηκε", "The file has no sound": "Το αρχείο δεν έχει ήχο", "The file has no picture": "Το αρχείο δεν έχει εικόνα", "The file has no video": "Το αρχείο δεν έχει εικόνα βίντεο", "Cannot read the picture": "Δεν διαβάζεται η εικόνα", "Cannot save in this format": "Δεν γίνεται αποθήκευση σε αυτή τη μορφή", "Unknown format": "Άγνωστη μορφή", "Opens only on a Mac for now": "Ανοίγει μόνο σε Mac προς το παρόν", "HEIC can be saved only on a Mac": "Το HEIC σώζεται μόνο σε Mac", "<b>{n} left out:</b> {names}. Roarverter does not read these files.": "<b>{n} έμειναν έξω:</b> {names}. Το Roarverter δεν διαβάζει αυτά τα αρχεία.", "<b>{n} left out:</b> {names}. RAW, JPEG XL and PDF open only on a Mac for now.": "<b>{n} έμειναν έξω:</b> {names}. Τα RAW, JPEG XL και PDF ανοίγουν μόνο σε Mac προς το παρόν.", "Same": "Ίδια", "print": "εκτύπωση", "uncompressed": "χωρίς συμπίεση", "from a clip": "από ένα clip", "animated": "κινούμενο", "everywhere": "παντού", "lossless": "χωρίς απώλειες", "one frame": "ένα καρέ", "Keeps each picture’s own format, only smaller.": "Κρατά τη μορφή κάθε εικόνας, μόνο μικρότερη.", "The safest choice for photos: every phone, browser and app opens it.": "Η πιο σίγουρη επιλογή για φωτογραφίες: την ανοίγει κάθε κινητό, browser και εφαρμογή.", "About a third smaller than JPG, for websites.": "Περίπου ένα τρίτο μικρότερο από το JPG, για sites.", "The smallest for the web; recent browsers only.": "Το μικρότερο για το web· μόνο σε πρόσφατους browsers.", "What iPhones use: half the size of JPG. Made with the Mac’s own tools.": "Αυτό που χρησιμοποιούν τα iPhone: το μισό του JPG. Φτιάχνεται με τα εργαλεία του ίδιου του Mac.", "Sharp edges and transparency, for logos and screenshots.": "Καθαρές άκρες και διαφάνεια, για λογότυπα και screenshots.", "For print and retouching.": "Για εκτύπωση και ρετούς.", "Few colours; use WebP for anything new.": "Λίγα χρώματα· για κάτι καινούργιο προτίμησε WebP.", "Uncompressed, for old software.": "Χωρίς συμπίεση, για παλιά προγράμματα.", "An icon up to 256 px, for Windows and websites.": "Εικονίδιο ως 256 px, για Windows και sites.", "Plays everywhere: phones, the web, every editor.": "Παίζει παντού: κινητά, web, κάθε πρόγραμμα μοντάζ.", "Half the size of H.264 for the same picture; every recent phone and computer plays it.": "Το μισό του H.264 για την ίδια εικόνα· το παίζει κάθε πρόσφατο κινητό και υπολογιστής.", "The smallest of all, slow to make; recent browsers and phones.": "Το μικρότερο απ’ όλα, αργό στη δημιουργία· πρόσφατοι browsers και κινητά.", "For websites; Chrome, Firefox and Edge.": "Για sites· Chrome, Firefox και Edge.", "H.264 in QuickTime’s own file.": "H.264 στο αρχείο του QuickTime.", "H.265 in MKV, for media players and archives.": "H.265 σε MKV, για media players και αρχεία.", "H.264 in MKV, for media players.": "H.264 σε MKV, για media players.", "For old players and TVs.": "Για παλιά players και τηλεοράσεις.", "MPEG-2, for DVD authoring and old TV systems.": "MPEG-2, για DVD και παλιά τηλεοπτικά συστήματα.", "Apple’s editing codec: Final Cut, Premiere, Resolve. Big files, light to edit.": "Ο codec μοντάζ της Apple: Final Cut, Premiere, Resolve. Μεγάλα αρχεία, ελαφριά στο μοντάζ.", "Avid’s editing codec in a QuickTime file, for Resolve and Premiere.": "Ο codec μοντάζ της Avid σε αρχείο QuickTime, για Resolve και Premiere.", "DNxHR in MXF, as Avid Media Composer likes it. Sound at 24-bit 48 kHz.": "DNxHR σε MXF, όπως το θέλει το Avid Media Composer. Ήχος 24-bit 48 kHz.", "XDCAM HD422, 50 Mbit/s: what broadcasters ask for. Sound at 24-bit 48 kHz.": "XDCAM HD422, 50 Mbit/s: αυτό που ζητούν τα κανάλια. Ήχος 24-bit 48 kHz.", "Lossless, for an archive: every frame exactly as it was, smaller than uncompressed.": "Χωρίς απώλειες, για αρχειοθέτηση: κάθε καρέ ακριβώς όπως ήταν, μικρότερο από ασυμπίεστο.", "A moving picture far smaller than GIF.": "Κινούμενη εικόνα πολύ μικρότερη από GIF.", "Plays everywhere.": "Παίζει παντού.", "AAC: smaller than MP3 at the same quality.": "AAC: μικρότερο από MP3 στην ίδια ποιότητα.", "For the mix: 24-bit, 48 kHz, uncompressed.": "Για τη μίξη: 24-bit, 48 kHz, ασυμπίεστο.", "CD quality, uncompressed.": "Ποιότητα CD, ασυμπίεστο.", "Uncompressed, the Mac’s own; 24-bit.": "Ασυμπίεστο, του Mac· 24-bit.", "Lossless and half the size of WAV; Apple Music and iPhone.": "Χωρίς απώλειες και το μισό του WAV· Apple Music και iPhone.", "Lossless and half the size of WAV.": "Χωρίς απώλειες και το μισό του WAV.", "Opus: the smallest for speech and music.": "Opus: το μικρότερο για ομιλία και μουσική.", "One frame as a JPG, at the moment you set in More options.": "Ένα καρέ σε JPG, τη στιγμή που ορίζεις στις Περισσότερες επιλογές.", "One frame as a PNG, at the moment you set in More options.": "Ένα καρέ σε PNG, τη στιγμή που ορίζεις στις Περισσότερες επιλογές.", "as original": "όπως το αρχικό", "photos": "φωτογραφίες", "web": "web", "smallest": "το μικρότερο", "transparency": "διαφάνεια", "moving": "κινούμενο", "icon": "εικονίδιο", "Share": "Κοινοποίηση", "Edit": "Μοντάζ", "Moving": "Κίνηση", "Still": "Στιγμιότυπο", "{a}/{b} done": "{a}/{b} έτοιμα", "Look & frame": "Εικόνα & κάδρο", "HDR to Rec.709": "HDR σε Rec.709", "iPhone and HDR videos look right everywhere, not grey.": "Τα βίντεο HDR και του iPhone φαίνονται σωστά παντού, όχι γκρίζα.", "LUT": "LUT", "Choose a .cube…": "Διάλεξε ένα .cube…", "Frame": "Κάδρο", "Crop": "Κόψιμο", "Fit, blurred edges": "Ολόκληρο, θολές άκρες", "fit": "ολόκληρο", "Anamorphic": "Anamorphic", "None": "Κανένα", "Loudness": "Ένταση", "Off": "Όχι", "−14 LUFS · web": "−14 LUFS · web", "−16 · podcast": "−16 · podcast", "−23 · TV": "−23 · TV", "Channels": "Κανάλια", "Stereo": "Στέρεο", "Mono": "Μονό", "Sample rate": "Συχνότητα", "Bitrate": "Bitrate", "Target size": "Στόχος μεγέθους", "Or a bitrate": "Ή bitrate", "e.g. 8": "π.χ. 8", "When either is set, the quality is left aside: a size for email or Discord, a bitrate as Resolve’s “Restrict to”.": "Όταν οριστεί ένα από τα δύο, αγνοείται η ποιότητα: μέγεθος για email ή Discord, bitrate όπως το «Restrict to» του Resolve.", "Two passes": "Δύο περάσματα", "Lands on the size or bitrate, takes twice as long.": "Πέφτει ακριβώς στο μέγεθος ή στο bitrate, θέλει διπλό χρόνο.", "Keyframe every": "Keyframe κάθε", "frames": "καρέ", "auto": "αυτόματα"};
 const t = (en, vars = {}) => {
   let s = (S.lang === 'el' && EL[en]) || en;
   for (const [k, v] of Object.entries(vars)) s = s.replace(`{${k}}`, v);
@@ -211,6 +218,11 @@ function drawChips() {
   chipRow($('#imgDims'), IMG_DIMS, S.imgMaxDim);
   chipRow($('#vidRes'), RESOLUTIONS, S.vidRes);
   chipRow($('#gifWidth'), GIF_WIDTHS.map(([v, l]) => [v, `${l} px`]), S.gifWidth);
+  chipRow($('#aspect'), ASPECTS, S.aspect);
+  chipRow($('#desqueeze'), DESQUEEZE, S.desqueeze);
+  chipRow($('#loudness'), LOUDNESS, S.loudness);
+  chipRow($('#channels'), CHANNELS, S.channels);
+  chipRow($('#sampleRate'), RATES, S.sampleRate);
   const pro = PRO[S.vidFormat];
   if (pro) {
     const cur = pro === 'prores' ? S.proresProfile : S.dnxhrProfile;
@@ -256,6 +268,14 @@ function bindSettings() {
   pick('#gifWidth', (v) => { S.gifWidth = v; });
   pick('#profile', (v) => { if (PRO[S.vidFormat] === 'prores') S.proresProfile = v; else S.dnxhrProfile = v; });
   pick('#vidSpeed', (v) => { S.vidSpeed = v; S.preset = null; });
+  pick('#aspect', (v) => { S.aspect = v; });
+  pick('#reframe', (v) => { S.reframe = v; });
+  pick('#desqueeze', (v) => { S.desqueeze = v; });
+  pick('#loudness', (v) => { S.loudness = v; });
+  pick('#channels', (v) => { S.channels = v; });
+  pick('#sampleRate', (v) => { S.sampleRate = v; });
+  $('#lutPick').addEventListener('click', async () => { const f = await window.api.pickLut(); if (f) { S.lutPath = f; refreshSettings(); save(); } });
+  $('#lutClear').addEventListener('click', () => { S.lutPath = ''; refreshSettings(); save(); });
   for (const box of $$('[data-presets]')) {
     box.addEventListener('click', (e) => {
       const b = e.target.closest('button[data-v]');
@@ -294,6 +314,7 @@ function refreshSettings() {
   $$('#tabs button').forEach((b) => b.classList.toggle('on', b.dataset.tab === S.tab));
   $$('.panel').forEach((p) => (p.hidden = p.dataset.panel !== S.tab));
   $$('#vidSpeed button').forEach((b) => b.classList.toggle('on', b.dataset.v === S.vidSpeed));
+  $$('#reframe button').forEach((b) => b.classList.toggle('on', b.dataset.v === S.reframe));
   $$('#outMode button').forEach((b) => b.classList.toggle('on', b.dataset.v === S.outMode));
   $('#outDir').textContent = S.outMode === 'custom' && S.outDir ? S.outDir : t('Next to the original file');
   $('#imgQualityVal').textContent = S.imgQuality;
@@ -305,7 +326,18 @@ function refreshSettings() {
   $('#hwRow').hidden = !(isMac() && HW_FORMATS.includes(S.vidFormat));
   $('#bitrateRow').hidden = !(cat === 'video' || (cat === 'audio' && !LOSSLESS_AUDIO.includes(S.vidFormat)));
   $('#trimStartLabel').textContent = cat === 'frame' ? t('At') : t('Start');
-  $('#vidQuality').disabled = cat === 'video' && !!S.vidTarget;
+  $('#vidQuality').disabled = cat === 'video' && !!(S.vidTarget || S.bitrateMbps);
+  $('#customSize').hidden = S.vidRes !== 'custom';
+  $('#reframe').hidden = !S.aspect;
+  // two passes only when a size or a bitrate is set, and not with the Mac's own encoder (it has no second pass)
+  const hwOn = isMac() && S.hw && HW_FORMATS.includes(S.vidFormat);
+  $('#twoPassRow').hidden = $('#twoPassRow').hidden || !(S.vidTarget || S.bitrateMbps) || hwOn;
+  $('#lutChip').hidden = !S.lutPath;
+  $('#lutPick').hidden = !!S.lutPath;
+  $('#lutName').textContent = S.lutPath.split(/[\\/]/).pop();
+  // what each closed box holds, in a few words
+  $('#lookSum').textContent = lookWords().join(' · ');
+  $('#soundSum').textContent = soundWords().join(' · ');
 
   // how many files each tab has
   const nImg = items.filter((i) => i.kind === 'image').length;
@@ -315,6 +347,21 @@ function refreshSettings() {
   for (const r of $$('input[type=range]')) r.style.setProperty('--p', `${((r.value - r.min) / (r.max - r.min)) * 100}%`);
   placeLenses();
   refreshStart();
+}
+
+function lookWords() {
+  const w = [];
+  if (S.lutPath) w.push('LUT');
+  if (S.aspect) w.push(`${S.aspect}${S.reframe === 'fit' ? ` ${t('fit')}` : ''}`);
+  if (+S.desqueeze) w.push(`${S.desqueeze}×`);
+  return w;
+}
+function soundWords() {
+  const w = [];
+  if (+S.loudness) w.push(`${S.loudness.replace('-', '−')} LUFS`);
+  if (+S.channels) w.push(t(S.channels === '1' ? 'Mono' : 'Stereo'));
+  if (+S.sampleRate) w.push(`${+S.sampleRate / 1000} kHz`);
+  return w;
 }
 
 function optionsFor(item) {
@@ -332,7 +379,20 @@ function optionsFor(item) {
     quality: S.vidQuality,
     profile: pro === 'prores' ? S.proresProfile : pro === 'dnxhr' ? S.dnxhrProfile : undefined,
     hw: S.hw && HW_FORMATS.includes(format),
-    resolution: +S.vidRes,
+    resolution: S.vidRes === 'custom' ? 0 : +S.vidRes,
+    width: S.vidRes === 'custom' ? +S.vidWidth || 0 : 0,
+    height: S.vidRes === 'custom' ? +S.vidHeight || 0 : 0,
+    hdrToSdr: S.hdrToSdr,
+    lut: S.lutPath || null,
+    aspect: S.aspect,
+    reframe: S.reframe,
+    desqueeze: +S.desqueeze,
+    loudness: +S.loudness,
+    channels: +S.channels,
+    sampleRate: +S.sampleRate,
+    bitrateMbps: +S.bitrateMbps || 0,
+    twoPass: S.twoPass,
+    keyframes: +S.keyframes || 0,
     gifWidth: +S.gifWidth,
     targetSizeMB: +S.vidTarget || 0,
     speed: S.vidSpeed,
@@ -348,7 +408,8 @@ function targetLabel(item) {
   if (item.kind === 'image') return S.imgFormat === 'original' ? t('Same') : imgLabel(S.imgFormat);
   const o = optionsFor(item);
   const pro = PRO[o.format];
-  return vidLabel(o.format) + (pro ? ` ${PROFILES[pro].find(([v]) => v === o.profile)?.[1] || ''}` : '');
+  const extra = vidCategory(o.format) === 'audio' ? soundWords() : [...lookWords(), ...(item.kind === 'video' ? soundWords() : [])];
+  return vidLabel(o.format) + (pro ? ` ${PROFILES[pro].find(([v]) => v === o.profile)?.[1] || ''}` : '') + (extra.length ? ` · ${extra.join(' · ')}` : '');
 }
 
 // ---------- The list ----------
