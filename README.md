@@ -21,7 +21,7 @@ An experiment of The Mad Lions Lab, in the Roar family (RoarMe, RoarTwin, RoarWr
   anamorphic desqueeze (1.33×, 1.5×, 1.8×, 2×); a size of your own (width × height, with bars where the shape
   differs); a keyframe every N frames.
 - **Sound:** loudness to −14 LUFS (web), −16 (podcast) or −23 (TV, EBU R128); mono or stereo; 44.1 or 48 kHz.
-- **Video to GIF or animated WebP**, with its own palette.
+- **Video to GIF or animated WebP**, with its own palette, and **a GIF into a video** (MP4, MOV, ProRes, WebM…; since 0.3.1 a GIF counts as a moving picture, and an odd size like 481×271 is made even for H.264).
 - **The sound only:** MP3, M4A (AAC), WAV 16-bit or 24-bit 48 kHz, AIFF 24-bit, ALAC, FLAC, OGG (Opus).
 - **A still:** one frame, JPG or PNG, at any moment.
 - Drop many files or whole folders; pictures go three at a time, videos one by one. A file Roarverter cannot read is
