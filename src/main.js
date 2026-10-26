@@ -4,7 +4,7 @@ const fs = require('fs');
 const sharp = require('sharp');
 const conv = require('./convert');
 const updater = require('./updater');
-const { IMAGE_EXT, VIDEO_EXT, AUDIO_EXT, kindOf, probe } = conv;
+const { IMAGE_EXT, VIDEO_EXT, AUDIO_EXT, MAC_ONLY_EXT, kindOf, probe } = conv;
 
 if (app.isPackaged) {
   conv.setFfmpegPath(path.join(process.resourcesPath, 'bin', process.platform === 'win32' ? 'ffmpeg.exe' : 'ffmpeg'));
@@ -84,17 +84,23 @@ ipcMain.handle('pick-folder', async () => {
   return r.canceled ? null : r.filePaths[0];
 });
 
-function walk(p, acc = []) {
+// every file Roarverter can take, inside the folders too; what it cannot take is named, not dropped silently
+function walk(p, acc, skipped, top) {
   const st = fs.statSync(p);
   if (st.isDirectory()) {
-    for (const f of fs.readdirSync(p)) if (!f.startsWith('.')) walk(path.join(p, f), acc);
-  } else if (kindOf(p)) acc.push(p);
-  return acc;
+    for (const f of fs.readdirSync(p)) if (!f.startsWith('.')) walk(path.join(p, f), acc, skipped, false);
+    return;
+  }
+  const ext = path.extname(p).slice(1).toLowerCase();
+  if (kindOf(p) && !(process.platform !== 'darwin' && MAC_ONLY_EXT.includes(ext))) acc.push(p);
+  else if (top || kindOf(p)) skipped.push({ name: path.basename(p), ext, macOnly: MAC_ONLY_EXT.includes(ext) });
 }
 
 ipcMain.handle('inspect', async (_e, paths) => {
-  const files = paths.flatMap((p) => { try { return walk(p); } catch { return []; } });
-  return Promise.all(files.map(async (file) => {
+  const files = [];
+  const skipped = [];
+  for (const p of paths) { try { walk(p, files, skipped, true); } catch {} }
+  const list = await Promise.all(files.map(async (file) => {
     const kind = kindOf(file);
     const size = fs.statSync(file).size;
     let meta = {};
@@ -106,6 +112,7 @@ ipcMain.handle('inspect', async (_e, paths) => {
     }
     return { file, name: path.basename(file), kind, size, ...meta };
   }));
+  return { files: list, skipped };
 });
 
 ipcMain.handle('convert', async (_e, { id, file, kind, options }) => {

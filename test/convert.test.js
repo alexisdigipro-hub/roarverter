@@ -17,8 +17,14 @@ ff('-f', 'lavfi', '-i', 'testsrc2=size=1920x1080:rate=30:duration=6', '-f', 'lav
 ff('-f', 'lavfi', '-i', 'testsrc2=size=1080x1920:rate=30:duration=3', '-c:v', 'libx264', path.join(T, 'vertical.mp4'));
 ff('-f', 'lavfi', '-i', 'mandelbrot=size=3000x2000', '-frames:v', '1', path.join(T, 'photo.png'));
 ff('-i', path.join(T, 'photo.png'), path.join(T, 'photo.bmp'));
-const heic = process.platform === 'darwin';
-if (heic) execFileSync('sips', ['-s', 'format', 'heic', path.join(T, 'photo.png'), '--out', path.join(T, 'photo.heic')], { stdio: 'ignore' });
+ff('-i', path.join(T, 'photo.png'), '-c:v', 'exr', '-pix_fmt', 'gbrpf32le', path.join(T, 'photo.exr'));
+ff('-i', path.join(T, 'photo.png'), path.join(T, 'photo.dpx'));
+const mac = process.platform === 'darwin';
+const heic = mac;
+if (mac) {
+  execFileSync('sips', ['-s', 'format', 'heic', path.join(T, 'photo.png'), '--out', path.join(T, 'photo.heic')], { stdio: 'ignore' });
+  execFileSync('sips', ['-s', 'format', 'psd', path.join(T, 'photo.png'), '--out', path.join(T, 'photo.psd')], { stdio: 'ignore' });
+}
 
 // [kind, input, options, what the result must be]
 const jobs = [
@@ -31,18 +37,41 @@ const jobs = [
   ['image', 'photo.png', { format: 'bmp', quality: 80, maxDim: 800 }, { w: 800 }],
   ['image', 'photo.png', { format: 'gif', quality: 80, maxDim: 600 }, { w: 600 }],
   ...(heic ? [['image', 'photo.heic', { format: 'jpeg', quality: 80 }, { w: 3000 }]] : []),
+  ['image', 'photo.exr', { format: 'jpeg', quality: 80 }, { w: 3000 }],
+  ['image', 'photo.dpx', { format: 'png', quality: 100 }, { w: 3000 }],
+  ...(mac ? [
+    ['image', 'photo.psd', { format: 'webp', quality: 80 }, { w: 3000 }],
+    ['image', 'photo.png', { format: 'heic', quality: 70, maxDim: 1920 }, { w: 1920 }],
+  ] : [
+    ['image', 'photo.png', { format: 'heic', quality: 70 }, { error: 'HEIC can be saved only on a Mac' }],
+  ]),
   ['video', 'test video.mov', { format: 'mp4-h264', quality: 60, resolution: 720, speed: 'fast', audioBitrate: 128 }, { w: 1280, h: 720, d: 6 }],
   ['video', 'test video.mov', { format: 'mp4-h265', quality: 50, speed: 'fast', audioBitrate: 96 }, { w: 1920, d: 6 }],
   ['video', 'test video.mov', { format: 'mp4-h264', quality: 60, targetSizeMB: 1, speed: 'fast', audioBitrate: 96 }, { maxBytes: 1.15 * 1024 * 1024 }],
   ['video', 'test video.mov', { format: 'webm-vp9', quality: 50, resolution: 480, speed: 'fast', audioBitrate: 96 }, { h: 480 }],
   ['video', 'test video.mov', { format: 'mp4-av1', quality: 50, resolution: 480, speed: 'fast', audioBitrate: 96 }, { h: 480 }],
-  ['video', 'test video.mov', { format: 'mov-prores', quality: 50, resolution: 480 }, { h: 480 }],
+  ['video', 'test video.mov', { format: 'mov-prores', quality: 50, resolution: 480 }, { h: 480, codec: 'prores' }],
+  ['video', 'test video.mov', { format: 'mov-prores', profile: '4444', resolution: 480 }, { h: 480, codec: 'prores' }],
+  ['video', 'test video.mov', { format: 'mov-prores', profile: 'proxy', resolution: 480 }, { h: 480, codec: 'prores' }],
+  ['video', 'test video.mov', { format: 'mov-dnxhr', profile: 'lb' }, { w: 1920, codec: 'dnxhd' }],
+  ['video', 'test video.mov', { format: 'mov-dnxhr', profile: 'hqx', resolution: 720 }, { h: 720, codec: 'dnxhd' }],
+  ['video', 'test video.mov', { format: 'mxf-dnxhr', profile: 'sq' }, { w: 1920, codec: 'dnxhd', audio: true }],
+  ['video', 'test video.mov', { format: 'mxf-mpeg2' }, { w: 1920, codec: 'mpeg2video', audio: true }],
+  ['video', 'test video.mov', { format: 'mkv-ffv1', resolution: 480 }, { h: 480, codec: 'ffv1', d: 6 }],
+  ['video', 'test video.mov', { format: 'mpg-mpeg2', quality: 60 }, { w: 1920, codec: 'mpeg2video' }],
+  ...(mac ? [
+    ['video', 'test video.mov', { format: 'mp4-h264', quality: 60, hw: true }, { w: 1920, codec: 'h264', d: 6 }],
+    ['video', 'test video.mov', { format: 'mp4-h265', quality: 60, hw: true, targetSizeMB: 2 }, { w: 1920, codec: 'hevc', maxBytes: 2.3 * 1024 * 1024 }],
+  ] : []),
   ['video', 'test video.mov', { format: 'avi', quality: 60, removeAudio: true }, { noAudio: true }],
   ['video', 'test video.mov', { format: 'mkv-h264', quality: 60, fps: 15, trimStart: 1, trimEnd: 4, speed: 'fast' }, { d: 3 }],
   ['video', 'test video.mov', { format: 'gif', quality: 70, gifWidth: 480, fps: 12, trimEnd: 3 }, { w: 480 }],
   ['video', 'test video.mov', { format: 'webp-anim', quality: 60, gifWidth: 320, fps: 12, trimEnd: 2 }, {}],
   ['video', 'test video.mov', { format: 'mp3', audioBitrate: 192 }, { d: 6 }],
   ['video', 'test video.mov', { format: 'flac' }, { d: 6 }],
+  ['video', 'test video.mov', { format: 'wav24' }, { d: 6, acodec: 'pcm_s24le' }],
+  ['video', 'test video.mov', { format: 'aiff' }, { d: 6, acodec: 'pcm_s24be' }],
+  ['video', 'test video.mov', { format: 'alac' }, { d: 6, acodec: 'alac' }],
   ['video', 'test video.mov', { format: 'frame-jpg', quality: 80, trimStart: 2 }, { w: 1920 }],
   ['video', 'vertical.mp4', { format: 'mp4-h264', quality: 60, resolution: 720, speed: 'fast' }, { w: 720, h: 1280 }],
   ['video', 'vertical.mp4', { format: 'mp3' }, { error: 'The file has no sound' }],
@@ -58,6 +87,7 @@ const jobs = [
       const out = kind === 'image' ? await c.convertImage(i, path.join(T, file), o) : await c.convertMedia(i, path.join(T, file), o, () => {});
       const size = fs.statSync(out).size;
       const p = await c.probe(out);
+      if (kind === 'image' && !p.width) { const m = await require('sharp')(out).metadata(); p.width = m.width; p.height = m.height; }
       const bad = [];
       if (want.error) bad.push('should have failed');
       if (!size) bad.push('empty file');
@@ -65,6 +95,9 @@ const jobs = [
       if (want.h && p.height !== want.h) bad.push(`height ${p.height}, not ${want.h}`);
       if (want.d && Math.abs(p.duration - want.d) > 0.3) bad.push(`length ${p.duration}, not ${want.d}`);
       if (want.noAudio && p.hasAudio) bad.push('still has sound');
+      if (want.audio && !p.hasAudio) bad.push('lost its sound');
+      if (want.codec && p.vcodec !== want.codec) bad.push(`codec ${p.vcodec}, not ${want.codec}`);
+      if (want.acodec && p.acodec !== want.acodec) bad.push(`sound ${p.acodec}, not ${want.acodec}`);
       if (want.maxBytes && size > want.maxBytes) bad.push(`${size} bytes, over the target`);
       if (bad.length) { failed++; console.log(`✗ ${label}: ${bad.join(', ')}`); } else console.log(`✓ ${label} (${Math.round(size / 1024)} KB)`);
     } catch (e) {

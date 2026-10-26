@@ -5,12 +5,17 @@ const { spawn, execFile } = require('child_process');
 const sharp = require('sharp');
 
 const IS_WIN = process.platform === 'win32';
+const IS_MAC = process.platform === 'darwin';
 let FFMPEG = path.join(__dirname, '..', 'vendor', 'ffmpeg', `${process.platform}-${process.arch}`, IS_WIN ? 'ffmpeg.exe' : 'ffmpeg');
 const setFfmpegPath = (p) => { FFMPEG = p; };
 
-const IMAGE_EXT = ['jpg', 'jpeg', 'png', 'webp', 'avif', 'tif', 'tiff', 'gif', 'bmp', 'heic', 'heif', 'svg', 'ico', 'jfif', 'tga', 'jp2'];
-const VIDEO_EXT = ['mp4', 'mov', 'm4v', 'mkv', 'webm', 'avi', 'wmv', 'flv', 'mpg', 'mpeg', 'ts', 'mts', 'm2ts', '3gp', 'ogv', 'vob', 'mxf'];
-const AUDIO_EXT = ['mp3', 'wav', 'm4a', 'aac', 'flac', 'ogg', 'opus', 'wma', 'aiff', 'aif'];
+// camera RAW, read through the Mac's own ImageIO (sips); there is no RAW reader on Windows yet
+const RAW_EXT = ['dng', 'cr2', 'cr3', 'crw', 'nef', 'nrw', 'arw', 'srf', 'sr2', 'raf', 'orf', 'rw2', 'pef', 'srw', '3fr', 'fff', 'iiq', 'mos', 'erf', 'dcr', 'mrw', 'rwl', 'x3f'];
+// read only on a Mac (sips): JPEG XL and a PDF's first page
+const MAC_ONLY_EXT = [...RAW_EXT, 'jxl', 'pdf'];
+const IMAGE_EXT = ['jpg', 'jpeg', 'png', 'webp', 'avif', 'tif', 'tiff', 'gif', 'bmp', 'heic', 'heif', 'svg', 'ico', 'jfif', 'tga', 'jp2', 'psd', 'exr', 'dpx', ...MAC_ONLY_EXT];
+const VIDEO_EXT = ['mp4', 'mov', 'm4v', 'mkv', 'webm', 'avi', 'wmv', 'flv', 'mpg', 'mpeg', 'ts', 'mts', 'm2ts', '3gp', 'ogv', 'vob', 'mxf', 'dv'];
+const AUDIO_EXT = ['mp3', 'wav', 'm4a', 'aac', 'flac', 'ogg', 'opus', 'wma', 'aiff', 'aif', 'caf', 'ac3'];
 
 const running = new Map(); // id -> child process
 
@@ -57,9 +62,11 @@ function probe(file) {
     execFile(FFMPEG, ['-hide_banner', '-i', file], { maxBuffer: 10 * 1024 * 1024 }, (_err, _out, stderr) => {
       const video = /Stream #.*Video: ([^,\s]+).*?, (\d{2,5})x(\d{2,5})/.exec(stderr);
       const fps = /(\d+(?:\.\d+)?) fps/.exec(stderr);
+      const audio = /Stream #.*Audio: ([^,\s]+)/.exec(stderr);
       resolve({
         duration: parseDuration(stderr),
-        hasAudio: /Stream #.*Audio:/.test(stderr),
+        hasAudio: !!audio,
+        acodec: audio?.[1],
         hasVideo: !!video,
         vcodec: video?.[1],
         width: video ? +video[2] : 0,
@@ -107,12 +114,17 @@ function scaleFilter(maxW, maxH) {
 
 // ---------- Pictures ----------
 
+const tmpFile = (ext) => path.join(os.tmpdir(), `rv-${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`);
+const sips = (args) => new Promise((res, rej) => execFile('sips', args, (e, _o, se) => (e ? rej(new Error(String(se || e.message).trim().split('\n').pop())) : res())));
+
 async function decodeFallback(input) {
-  // HEIC, BMP, ICO and the like that sharp cannot read: first into a temporary PNG
-  const tmp = path.join(os.tmpdir(), `mc-${Date.now()}-${Math.random().toString(36).slice(2)}.png`);
+  // HEIC, RAW, PSD, EXR, BMP, ICO and the like that sharp cannot read: first into a temporary PNG
+  const tmp = tmpFile('png');
   const ext = path.extname(input).slice(1).toLowerCase();
-  if (process.platform === 'darwin' && ['heic', 'heif'].includes(ext)) {
-    await new Promise((res, rej) => execFile('sips', ['-s', 'format', 'png', input, '--out', tmp], (e) => (e ? rej(e) : res())));
+  if (IS_MAC && ['heic', 'heif', 'psd', 'exr', ...MAC_ONLY_EXT].includes(ext)) {
+    await sips(['-s', 'format', 'png', input, '--out', tmp]);
+  } else if (MAC_ONLY_EXT.includes(ext)) {
+    throw new Error('Opens only on a Mac for now');
   } else {
     await new Promise((res, rej) => execFile(FFMPEG, ['-hide_banner', '-y', '-i', input, '-frames:v', '1', tmp], (e, _o, se) => (e ? rej(new Error(se.split('\n').slice(-2).join(' '))) : res())));
   }
@@ -122,7 +134,7 @@ async function decodeFallback(input) {
 async function convertImage(id, input, o) {
   const fmt = o.format === 'original' ? normalizeImageExt(path.extname(input).slice(1)) : o.format;
   const ext = fmt === 'jpeg' ? 'jpg' : fmt;
-  const out = outputPathFor(input, ext, o);
+  const out = o._out || outputPathFor(input, ext, o);
 
   if (fmt === 'bmp' || fmt === 'ico') {
     // sharp does not write BMP or ICO: ffmpeg does
@@ -133,6 +145,19 @@ async function convertImage(id, input, o) {
     if (vf.length) args.push('-vf', vf.join(','));
     args.push('-frames:v', '1', out);
     await runFfmpeg(id, args, 0, () => {});
+    return out;
+  }
+
+  if (fmt === 'heic') {
+    // there is no HEIC encoder in sharp or ffmpeg: the picture is made as a PNG, then the Mac's sips writes HEIC
+    if (!IS_MAC) throw new Error('HEIC can be saved only on a Mac');
+    const png = tmpFile('png');
+    try {
+      await convertImage(id, input, { ...o, format: 'png', quality: 100, outputDir: path.dirname(png), suffix: '', _out: png });
+      await sips(['-s', 'format', 'heic', '-s', 'formatOptions', String(Math.round(o.quality)), png, '--out', out]);
+    } finally {
+      fs.rm(png, () => {});
+    }
     return out;
   }
 
@@ -188,7 +213,8 @@ function normalizeImageExt(ext) {
   if (['jpg', 'jpeg', 'jfif'].includes(ext)) return 'jpeg';
   if (['tif', 'tiff'].includes(ext)) return 'tiff';
   if (['png', 'webp', 'avif', 'gif', 'bmp'].includes(ext)) return ext;
-  return 'jpeg'; // HEIC, SVG and the like become JPG
+  if (['heic', 'heif'].includes(ext) && IS_MAC) return 'heic';
+  return 'jpeg'; // RAW, PSD, SVG and the like become JPG
 }
 
 // ---------- Video and sound ----------
@@ -199,7 +225,12 @@ const VIDEO_FORMATS = {
   'mp4-av1': { ext: 'mp4', v: 'libsvtav1', a: 'aac' },
   'webm-vp9': { ext: 'webm', v: 'libvpx-vp9', a: 'libopus' },
   'mov-h264': { ext: 'mov', v: 'libx264', a: 'aac' },
-  'mov-prores': { ext: 'mov', v: 'prores_ks', a: 'pcm_s16le' },
+  'mov-prores': { ext: 'mov', v: 'prores_ks', a: 'pcm_s16le', pro: 'prores' },
+  'mov-dnxhr': { ext: 'mov', v: 'dnxhd', a: 'pcm_s16le', pro: 'dnxhr' },
+  'mxf-dnxhr': { ext: 'mxf', v: 'dnxhd', a: 'pcm_s24le', ar: 48000, pro: 'dnxhr' },
+  'mxf-mpeg2': { ext: 'mxf', v: 'mpeg2video', a: 'pcm_s24le', ar: 48000, xdcam: true },
+  'mkv-ffv1': { ext: 'mkv', v: 'ffv1', a: 'flac', lossless: true },
+  'mpg-mpeg2': { ext: 'mpg', v: 'mpeg2video', a: 'mp2' },
   'mkv-h264': { ext: 'mkv', v: 'libx264', a: 'aac' },
   'mkv-h265': { ext: 'mkv', v: 'libx265', a: 'aac' },
   avi: { ext: 'avi', v: 'mpeg4', a: 'libmp3lame' },
@@ -208,6 +239,9 @@ const VIDEO_FORMATS = {
   mp3: { ext: 'mp3', audio: 'libmp3lame' },
   m4a: { ext: 'm4a', audio: 'aac' },
   wav: { ext: 'wav', audio: 'pcm_s16le' },
+  wav24: { ext: 'wav', audio: 'pcm_s24le', ar: 48000 },
+  aiff: { ext: 'aiff', audio: 'pcm_s24be' },
+  alac: { ext: 'm4a', audio: 'alac' },
   flac: { ext: 'flac', audio: 'flac' },
   ogg: { ext: 'ogg', audio: 'libopus' },
   'frame-jpg': { ext: 'jpg', frame: true },
@@ -227,6 +261,12 @@ function crfFor(codec, q) {
   }
 }
 
+// ProRes and DNxHR: a profile, not a quality
+const PRORES = { proxy: ['0', 'yuv422p10le'], lt: ['1', 'yuv422p10le'], '422': ['2', 'yuv422p10le'], hq: ['3', 'yuv422p10le'], '4444': ['4', 'yuva444p10le'] };
+const DNXHR = { lb: 'yuv422p', sq: 'yuv422p', hq: 'yuv422p', hqx: 'yuv422p10le', '444': 'yuv444p10le' };
+const proresFromQuality = (q) => (q >= 80 ? 'hq' : q >= 50 ? '422' : q >= 25 ? 'lt' : 'proxy');
+const dnxhrFromQuality = (q) => (q >= 80 ? 'hq' : q >= 40 ? 'sq' : 'lb');
+
 const SPEED = {
   libx264: { fast: 'veryfast', balanced: 'medium', small: 'slow' },
   libx265: { fast: 'veryfast', balanced: 'medium', small: 'slow' },
@@ -244,8 +284,11 @@ function hasEncoder(name) {
   });
   return encoders.then((list) => new RegExp(`\\s${name}\\s`).test(list));
 }
-async function videoEncoder(v) {
+const HARDWARE = { libx264: 'h264_videotoolbox', libx265: 'hevc_videotoolbox' };
+async function videoEncoder(v, hw) {
   if (v === 'libsvtav1' && !(await hasEncoder('libsvtav1'))) return 'libaom-av1';
+  // the Mac's own video engine: several times faster, a little bigger for the same picture
+  if (hw && IS_MAC && HARDWARE[v] && (await hasEncoder(HARDWARE[v]))) return HARDWARE[v];
   return v;
 }
 
@@ -276,6 +319,7 @@ async function convertMedia(id, input, o, onProgress) {
     if (!info.hasAudio) throw new Error('The file has no sound');
     args.push('-vn', '-c:a', f.audio);
     if (['libmp3lame', 'aac', 'libopus'].includes(f.audio)) args.push('-b:a', `${o.audioBitrate || 192}k`);
+    if (f.ar) args.push('-ar', String(f.ar));
     args.push(out);
     await runFfmpeg(id, args, duration, onProgress);
     return out;
@@ -317,22 +361,47 @@ async function convertMedia(id, input, o, onProgress) {
   if (o.fps) vf.push(`fps=${o.fps}`);
   if (vf.length) args.push('-vf', vf.join(','));
 
-  const v = await videoEncoder(f.v);
+  const base = args.slice();
+  const v = await videoEncoder(f.v, o.hw);
+  try {
+    await encodeVideo(id, base, v, f, o, info, duration, out, onProgress);
+  } catch (e) {
+    if (v === f.v || /Cancelled/.test(e.message)) throw e;
+    // the Mac's encoder said no (an old Mac, an odd size): the same file with the software one
+    fs.rm(out, () => {});
+    await encodeVideo(id, base, await videoEncoder(f.v, false), f, o, info, duration, out, onProgress);
+  }
+  return out;
+}
+
+async function encodeVideo(id, base, v, f, o, info, duration, out, onProgress) {
+  const args = base.slice();
   args.push('-c:v', v);
   const speed = SPEED[v]?.[o.speed || 'balanced'];
   if (speed) args.push(['libvpx-vp9', 'libaom-av1'].includes(v) ? '-cpu-used' : '-preset', speed);
 
   const audioKbps = o.removeAudio || !info.hasAudio ? 0 : o.audioBitrate || 128;
 
-  if (o.targetSizeMB && duration > 0 && v !== 'prores_ks') {
+  if (f.pro === 'prores') {
+    const [profile, pix] = PRORES[o.profile] || PRORES[proresFromQuality(o.quality)];
+    args.push('-profile:v', profile, '-pix_fmt', pix, '-vendor', 'apl0');
+  } else if (f.pro === 'dnxhr') {
+    const p = DNXHR[o.profile] ? o.profile : dnxhrFromQuality(o.quality);
+    args.push('-profile:v', `dnxhr_${p}`, '-pix_fmt', DNXHR[p]);
+  } else if (f.lossless) {
+    args.push('-level', '3', '-g', '1', '-slicecrc', '1');
+  } else if (f.xdcam) {
+    // XDCAM HD422 style: 50 Mbit/s, 4:2:2, long GOP
+    args.push('-b:v', '50M', '-minrate', '50M', '-maxrate', '50M', '-bufsize', '17825792', '-pix_fmt', 'yuv422p', '-g', '12', '-bf', '2');
+  } else if (o.targetSizeMB && duration > 0) {
     // a target size: bitrate = size / length (4% left for the container)
     const totalKbps = (o.targetSizeMB * 8 * 1024 * 0.96) / duration;
     const vKbps = Math.max(50, Math.floor(totalKbps - audioKbps));
     args.push('-b:v', `${vKbps}k`, '-maxrate', `${Math.floor(vKbps * 1.2)}k`, '-bufsize', `${vKbps * 2}k`);
     if (['libvpx-vp9', 'libaom-av1'].includes(v)) args.push('-row-mt', '1');
-  } else if (v === 'prores_ks') {
-    args.push('-profile:v', o.quality >= 80 ? '3' : o.quality >= 50 ? '2' : '0', '-pix_fmt', 'yuv422p10le');
-  } else if (v === 'mpeg4') {
+  } else if (v.endsWith('_videotoolbox')) {
+    args.push('-q:v', String(Math.max(1, Math.round(o.quality))));
+  } else if (v === 'mpeg4' || v === 'mpeg2video') {
     args.push('-q:v', String(Math.round(2 + (1 - o.quality / 100) * 18)));
   } else {
     const crf = crfFor(v, o.quality);
@@ -340,13 +409,14 @@ async function convertMedia(id, input, o, onProgress) {
     if (['libvpx-vp9', 'libaom-av1'].includes(v)) args.push('-b:v', '0', '-row-mt', '1');
   }
 
-  if (['libx264', 'libx265'].includes(v)) args.push('-pix_fmt', 'yuv420p');
-  if (v === 'libx265' && f.ext !== 'mkv') args.push('-tag:v', 'hvc1'); // so QuickTime and iPhones play it
+  if (['libx264', 'libx265', 'h264_videotoolbox', 'hevc_videotoolbox', 'mpeg2video'].includes(v) && !f.xdcam) args.push('-pix_fmt', 'yuv420p');
+  if (['libx265', 'hevc_videotoolbox'].includes(v) && f.ext !== 'mkv') args.push('-tag:v', 'hvc1'); // so QuickTime and iPhones play it
   if (['libsvtav1', 'libaom-av1'].includes(v)) args.push('-pix_fmt', 'yuv420p');
 
   if (audioKbps === 0) args.push('-an');
-  else if (f.a === 'pcm_s16le') args.push('-c:a', f.a);
+  else if (/^pcm_|^flac$/.test(f.a)) args.push('-c:a', f.a); // no bitrate for uncompressed or lossless sound
   else args.push('-c:a', f.a, '-b:a', `${audioKbps}k`);
+  if (audioKbps && f.ar) args.push('-ar', String(f.ar));
 
   if (['mp4', 'mov'].includes(f.ext)) args.push('-movflags', '+faststart');
   args.push('-map_metadata', o.keepMetadata ? '0' : '-1');
@@ -357,5 +427,5 @@ async function convertMedia(id, input, o, onProgress) {
 }
 
 module.exports = {
-  IMAGE_EXT, VIDEO_EXT, AUDIO_EXT, setFfmpegPath, kindOf, probe, convertImage, convertMedia, cancel, cancelAll,
+  IMAGE_EXT, VIDEO_EXT, AUDIO_EXT, MAC_ONLY_EXT, setFfmpegPath, kindOf, probe, convertImage, convertMedia, cancel, cancelAll,
 };
