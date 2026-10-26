@@ -24,6 +24,8 @@ ff('-f', 'lavfi', '-i', 'testsrc2=size=1920x1080:rate=25:duration=2', '-vf', 'zs
 // a LUT that makes everything red
 fs.writeFileSync(path.join(T, 'red look.cube'), 'LUT_3D_SIZE 2\n' + '1.0 0.0 0.0\n'.repeat(8));
 ff('-i', path.join(T, 'photo.png'), path.join(T, 'photo.dpx'));
+// a moving GIF with an odd size, as they come from the web
+ff('-f', 'lavfi', '-i', 'testsrc2=size=481x271:rate=15:duration=2', '-vf', 'split[a][b];[a]palettegen[p];[b][p]paletteuse', path.join(T, 'moving.gif'));
 const mac = process.platform === 'darwin';
 const heic = mac;
 if (mac) {
@@ -96,6 +98,12 @@ const jobs = [
   ['video', 'test video.mov', { format: 'mp4-h264', quality: 60, speed: 'fast', keyframes: 25 }, { w: 1920, d: 6 }],
   ['video', 'test video.mov', { format: 'mp3', loudness: -14, channels: 1, audioBitrate: 128 }, { d: 6, channels: 'mono', rate: 48000 }],
   ['video', 'test video.mov', { format: 'mp4-h264', quality: 60, speed: 'fast', loudness: -23, channels: 2, sampleRate: 44100 }, { channels: 'stereo', rate: 44100 }],
+  // a GIF into a video (26 Oct): every format a clip gets, the odd size made even
+  ['video', 'moving.gif', { format: 'mp4-h264', quality: 60, speed: 'fast' }, { w: 480, h: 270, codec: 'h264', d: 2 }],
+  ['video', 'moving.gif', { format: 'mov-prores', profile: 'proxy' }, { w: 480, codec: 'prores' }],
+  ['video', 'moving.gif', { format: 'webm-vp9', quality: 60, speed: 'fast', resolution: 240 }, { h: 240 }],
+  ['video', 'moving.gif', { format: 'gif', quality: 70, gifWidth: 320, fps: 12 }, { w: 320 }],
+  ['video', 'moving.gif', { format: 'frame-png', trimStart: 1 }, { w: 480 }],
   ['video', 'test video.mov', { format: 'nope' }, { error: 'Unknown format' }],
 ];
 

@@ -445,6 +445,7 @@ async function addPaths(paths) {
 
 function thumbHtml(it) {
   if (it.kind === 'image' && /\.(jpe?g|jfif|png|webp|avif|gif|bmp|svg)$/i.test(it.file)) return `<img src="${fileUrl(it.file)}" loading="lazy">`;
+  if (it.kind === 'video' && /\.gif$/i.test(it.file)) return `<img src="${fileUrl(it.file)}" loading="lazy">`;
   if (it.kind === 'video') return `<video src="${fileUrl(it.file)}#t=1" preload="metadata" muted></video>`;
   return svg(it.kind);
 }

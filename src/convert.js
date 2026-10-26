@@ -13,8 +13,10 @@ const setFfmpegPath = (p) => { FFMPEG = p; };
 const RAW_EXT = ['dng', 'cr2', 'cr3', 'crw', 'nef', 'nrw', 'arw', 'srf', 'sr2', 'raf', 'orf', 'rw2', 'pef', 'srw', '3fr', 'fff', 'iiq', 'mos', 'erf', 'dcr', 'mrw', 'rwl', 'x3f'];
 // read only on a Mac (sips): JPEG XL and a PDF's first page
 const MAC_ONLY_EXT = [...RAW_EXT, 'jxl', 'pdf'];
-const IMAGE_EXT = ['jpg', 'jpeg', 'png', 'webp', 'avif', 'tif', 'tiff', 'gif', 'bmp', 'heic', 'heif', 'svg', 'ico', 'jfif', 'tga', 'jp2', 'psd', 'exr', 'dpx', ...MAC_ONLY_EXT];
-const VIDEO_EXT = ['mp4', 'mov', 'm4v', 'mkv', 'webm', 'avi', 'wmv', 'flv', 'mpg', 'mpeg', 'ts', 'mts', 'm2ts', '3gp', 'ogv', 'vob', 'mxf', 'dv'];
+const IMAGE_EXT = ['jpg', 'jpeg', 'png', 'webp', 'avif', 'tif', 'tiff', 'bmp', 'heic', 'heif', 'svg', 'ico', 'jfif', 'tga', 'jp2', 'psd', 'exr', 'dpx', ...MAC_ONLY_EXT];
+// a GIF is a moving picture (Alex, 26 Oct: "Roarverter does not turn a GIF into a video"): ffmpeg reads it like a clip,
+// so it gets every video format (MP4, MOV, WebM… and GIF or one frame as a picture)
+const VIDEO_EXT = ['gif', 'mp4', 'mov', 'm4v', 'mkv', 'webm', 'avi', 'wmv', 'flv', 'mpg', 'mpeg', 'ts', 'mts', 'm2ts', '3gp', 'ogv', 'vob', 'mxf', 'dv'];
 const AUDIO_EXT = ['mp3', 'wav', 'm4a', 'aac', 'flac', 'ogg', 'opus', 'wma', 'aiff', 'aif', 'caf', 'ac3'];
 
 const running = new Map(); // id -> child process
@@ -354,6 +356,8 @@ function pictureGraph(o, info, tail = []) {
   }
   // square pixels at the end, or a player may stretch what the frame and the blur made
   if (o.desqueeze > 1 || a || (o.width && o.height)) more.push('setsar=1');
+  // an odd width or height (common in GIFs: 481×271) at its own size: one pixel off, as H.264 and the rest need even
+  else if (!o.resolution && ((w % 2) || (h % 2))) more.push('scale=trunc(iw/2)*2:trunc(ih/2)*2');
   more.push(...tail);
   if (more.length) graph += `,${more.join(',')}`;
   return `${graph}[v]`;
