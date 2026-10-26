@@ -1,6 +1,6 @@
 {
   "name": "roarverter",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Roarverter: converts and compresses pictures, videos and sound, on your own computer. The Mad Lions Lab.",
   "main": "src/main.js",
   "scripts": {

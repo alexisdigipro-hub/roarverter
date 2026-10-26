@@ -62,11 +62,17 @@ function probe(file) {
     execFile(FFMPEG, ['-hide_banner', '-i', file], { maxBuffer: 10 * 1024 * 1024 }, (_err, _out, stderr) => {
       const video = /Stream #.*Video: ([^,\s]+).*?, (\d{2,5})x(\d{2,5})/.exec(stderr);
       const fps = /(\d+(?:\.\d+)?) fps/.exec(stderr);
-      const audio = /Stream #.*Audio: ([^,\s]+)/.exec(stderr);
+      const audio = /Stream #.*Audio: ([^,\s]+)[^\n]*?, (\d+) Hz, ([^,\n]+)/.exec(stderr);
+      // the colour: yuv420p10le(tv, bt2020nc/bt2020/arib-std-b67, …) says how the picture was made (HLG, PQ, Rec.709)
+      // (one name when all three are the same: "yuv420p(tv, bt709, progressive)")
+      const colour = /Stream #.*Video: [^\n]*?\((?:tv|pc), ([\w-]+)(?:\/([\w-]+)\/([\w-]+))?[,)]/.exec(stderr);
       resolve({
         duration: parseDuration(stderr),
         hasAudio: !!audio,
         acodec: audio?.[1],
+        sampleRate: audio ? +audio[2] : 0,
+        channels: audio?.[3]?.trim(),
+        transfer: colour ? colour[3] || (colour[1] === 'progressive' ? undefined : colour[1]) : undefined,
         hasVideo: !!video,
         vcodec: video?.[1],
         width: video ? +video[2] : 0,
@@ -292,17 +298,83 @@ async function videoEncoder(v, hw) {
   return v;
 }
 
+// ---------- The picture's way through: desqueeze, HDR, LUT, reframe, size, frame rate ----------
+
+const HDR_TRANSFERS = ['smpte2084', 'arib-std-b67']; // PQ (HDR10, Dolby Vision) and HLG (iPhone)
+const ASPECTS = { '16:9': 16 / 9, '9:16': 9 / 16, '1:1': 1, '4:5': 4 / 5, '4:3': 4 / 3, '2.39:1': 2.39 };
+const even = (n) => Math.max(2, Math.round(n / 2) * 2);
+
+// a path inside a filter graph: forward slashes, the drive's colon and quotes escaped (Windows too)
+const filterPath = (p) => p.replace(/\\/g, '/').replace(/'/g, "\\\\'").replace(/:/g, '\\:');
+
+// The whole picture chain as one filter graph from [0:v] to [v]; `tail` is added at its end (a GIF's palette).
+function pictureGraph(o, info, tail = []) {
+  const chain = [];
+  let w = info.width, h = info.height;
+  if (o.desqueeze && o.desqueeze > 1) {
+    // anamorphic: stretch the width, square pixels
+    chain.push(`scale=trunc(iw*${o.desqueeze}/2)*2:ih`, 'setsar=1');
+    w = even(w * o.desqueeze);
+  }
+  if (o.hdrToSdr !== false && HDR_TRANSFERS.includes(info.transfer)) {
+    // HDR to Rec.709 SDR, so iPhone and HDR videos do not look grey and washed out
+    chain.push('zscale=t=linear:npl=100', 'format=gbrpf32le', 'zscale=p=bt709', 'tonemap=tonemap=hable:desat=0', 'zscale=t=bt709:m=bt709:r=tv', 'format=yuv420p');
+  }
+  if (o.lut) chain.push(`lut3d=file='${filterPath(o.lut)}'`);
+
+  let graph = `[0:v]${chain.length ? chain.join(',') : 'null'}`;
+  const a = ASPECTS[o.aspect];
+  if (a && w && h) {
+    // the frame for social: crop to it, or fit the whole picture with its own blurred copy behind
+    // crop: the biggest frame of that shape inside the picture, never enlarged
+    const cover = w / h > a ? [even(h * a), even(h)] : [even(w), even(w / a)];
+    // fit: a frame whose short side is the picture's short side (1920×1080 to 9:16 is 1080×1920)
+    const short = Math.min(w, h);
+    const fit = a < 1 ? [even(short), even(short / a)] : [even(short * a), even(short)];
+    if (o.reframe === 'fit') {
+      const [W, H] = fit;
+      graph += `,split[rva][rvb];[rva]scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H},boxblur=40:2,eq=brightness=-0.08[rvbg];` +
+        `[rvb]scale=${W}:${H}:force_original_aspect_ratio=decrease[rvfg];[rvbg][rvfg]overlay=(W-w)/2:(H-h)/2`;
+      w = W; h = H;
+    } else {
+      const [W, H] = cover;
+      graph += `,crop=${W}:${H}`;
+      w = W; h = H;
+    }
+  }
+  const more = [];
+  if (o.width && o.height) {
+    // a size of your own: fitted in, black bars where the shape differs
+    const W = even(o.width), H = even(o.height);
+    more.push(`scale=${W}:${H}:force_original_aspect_ratio=decrease,pad=${W}:${H}:(ow-iw)/2:(oh-ih)/2,setsar=1`);
+  } else if (o.resolution) {
+    // the resolution is the short side, so it works for upright videos too
+    const s = w >= h ? scaleFilter(0, o.resolution) : scaleFilter(o.resolution, 0);
+    if (s) more.push(s);
+  }
+  // square pixels at the end, or a player may stretch what the frame and the blur made
+  if (o.desqueeze > 1 || a || (o.width && o.height)) more.push('setsar=1');
+  more.push(...tail);
+  if (more.length) graph += `,${more.join(',')}`;
+  return `${graph}[v]`;
+}
+
+// loudness, channels and sample rate for the sound
+function soundArgs(o, fixedRate) {
+  const args = [];
+  if (o.loudness) args.push('-af', `loudnorm=I=${o.loudness}:TP=${o.loudness <= -20 ? -2 : -1.5}:LRA=11`);
+  if (o.channels) args.push('-ac', String(o.channels));
+  const ar = fixedRate || o.sampleRate || (o.loudness ? 48000 : 0); // loudnorm works at 192 kHz inside: say what comes out
+  if (ar) args.push('-ar', String(ar));
+  return args;
+}
+
 async function convertMedia(id, input, o, onProgress) {
   const f = VIDEO_FORMATS[o.format];
   if (!f) throw new Error(`Unknown format: ${o.format}`);
   const info = await probe(input);
-  if (o.resolution) {
-    // the resolution is the short side, so it works for upright videos too
-    o = info.width >= info.height ? { ...o, maxHeight: o.resolution } : { ...o, maxWidth: o.resolution };
-  }
   const out = outputPathFor(input, f.ext, o);
   const args = [];
-  const vf = [];
 
   if (o.trimStart) args.push('-ss', String(o.trimStart));
   args.push('-i', input);
@@ -312,39 +384,35 @@ async function convertMedia(id, input, o, onProgress) {
   if (o.trimEnd && o.trimEnd > (o.trimStart || 0)) duration = Math.min(duration || Infinity, o.trimEnd - (o.trimStart || 0));
   else if (o.trimStart) duration = Math.max(0, duration - o.trimStart);
 
-  const scale = scaleFilter(o.maxWidth, o.maxHeight);
-
   // the sound only
   if (f.audio) {
     if (!info.hasAudio) throw new Error('The file has no sound');
     args.push('-vn', '-c:a', f.audio);
     if (['libmp3lame', 'aac', 'libopus'].includes(f.audio)) args.push('-b:a', `${o.audioBitrate || 192}k`);
-    if (f.ar) args.push('-ar', String(f.ar));
-    args.push(out);
+    args.push(...soundArgs(o, f.ar), out);
     await runFfmpeg(id, args, duration, onProgress);
     return out;
   }
 
+  if (!info.hasVideo) throw new Error(f.frame ? 'The file has no picture' : 'The file has no video');
+
   // one still
   if (f.frame) {
-    if (!info.hasVideo) throw new Error('The file has no picture');
-    if (scale) args.push('-vf', scale);
+    args.push('-filter_complex', pictureGraph(o, info), '-map', '[v]');
     if (f.ext === 'jpg') args.push('-q:v', String(Math.round(2 + (1 - o.quality / 100) * 20)));
     args.push('-frames:v', '1', '-update', '1', out);
     await runFfmpeg(id, args, 0, () => {});
     return out;
   }
 
-  if (!info.hasVideo) throw new Error('The file has no video');
-
   // a GIF with its own palette, for a better picture
   if (f.gif) {
     const fps = o.fps || 12;
     const w = Math.min(info.width || 480, o.gifWidth || 640);
     const colors = Math.max(32, Math.round((o.quality / 100) * 256));
-    args.push('-filter_complex',
-      `fps=${fps},scale=${w}:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=${colors}:stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=4`,
-      '-loop', '0', out);
+    args.push('-filter_complex', pictureGraph({ ...o, resolution: 0, width: 0, height: 0 }, info,
+      [`fps=${fps}`, `scale=${w}:-1:flags=lanczos`, `split[a][b];[a]palettegen=max_colors=${colors}:stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=4`]),
+    '-map', '[v]', '-loop', '0', out);
     await runFfmpeg(id, args, duration, onProgress);
     return out;
   }
@@ -352,14 +420,15 @@ async function convertMedia(id, input, o, onProgress) {
   if (f.anim) {
     const fps = o.fps || 15;
     const w = Math.min(info.width || 480, o.gifWidth || 640);
-    args.push('-vf', `fps=${fps},scale=${w}:-1:flags=lanczos`, '-c:v', 'libwebp_anim', '-quality', String(Math.round(o.quality)), '-loop', '0', '-an', out);
+    args.push('-filter_complex', pictureGraph({ ...o, resolution: 0, width: 0, height: 0 }, info, [`fps=${fps}`, `scale=${w}:-1:flags=lanczos`]),
+      '-map', '[v]', '-c:v', 'libwebp_anim', '-quality', String(Math.round(o.quality)), '-loop', '0', '-an', out);
     await runFfmpeg(id, args, duration, onProgress);
     return out;
   }
 
-  if (scale) vf.push(scale);
-  if (o.fps) vf.push(`fps=${o.fps}`);
-  if (vf.length) args.push('-vf', vf.join(','));
+  args.push('-filter_complex', pictureGraph(o, info, o.fps ? [`fps=${o.fps}`] : []), '-map', '[v]');
+  const sound = !o.removeAudio && info.hasAudio;
+  if (sound) args.push('-map', '0:a:0');
 
   const base = args.slice();
   const v = await videoEncoder(f.v, o.hw);
@@ -374,6 +443,8 @@ async function convertMedia(id, input, o, onProgress) {
   return out;
 }
 
+const TWO_PASS = ['libx264', 'libx265', 'libvpx-vp9', 'libaom-av1'];
+
 async function encodeVideo(id, base, v, f, o, info, duration, out, onProgress) {
   const args = base.slice();
   args.push('-c:v', v);
@@ -381,6 +452,7 @@ async function encodeVideo(id, base, v, f, o, info, duration, out, onProgress) {
   if (speed) args.push(['libvpx-vp9', 'libaom-av1'].includes(v) ? '-cpu-used' : '-preset', speed);
 
   const audioKbps = o.removeAudio || !info.hasAudio ? 0 : o.audioBitrate || 128;
+  let byRate = false; // a bitrate was set: two passes can make it land
 
   if (f.pro === 'prores') {
     const [profile, pix] = PRORES[o.profile] || PRORES[proresFromQuality(o.quality)];
@@ -397,31 +469,53 @@ async function encodeVideo(id, base, v, f, o, info, duration, out, onProgress) {
     // a target size: bitrate = size / length (4% left for the container)
     const totalKbps = (o.targetSizeMB * 8 * 1024 * 0.96) / duration;
     const vKbps = Math.max(50, Math.floor(totalKbps - audioKbps));
-    args.push('-b:v', `${vKbps}k`, '-maxrate', `${Math.floor(vKbps * 1.2)}k`, '-bufsize', `${vKbps * 2}k`);
-    if (['libvpx-vp9', 'libaom-av1'].includes(v)) args.push('-row-mt', '1');
+    args.push('-b:v', `${vKbps}k`);
+    if (!o.twoPass) args.push('-maxrate', `${Math.floor(vKbps * 1.2)}k`, '-bufsize', `${vKbps * 2}k`);
+    byRate = true;
+  } else if (o.bitrateMbps) {
+    // a bitrate, as Resolve's "Restrict to": an average, never far above it
+    const kbps = Math.round(o.bitrateMbps * 1000);
+    args.push('-b:v', `${kbps}k`, '-maxrate', `${Math.round(kbps * 1.25)}k`, '-bufsize', `${kbps * 2}k`);
+    byRate = true;
   } else if (v.endsWith('_videotoolbox')) {
     args.push('-q:v', String(Math.max(1, Math.round(o.quality))));
   } else if (v === 'mpeg4' || v === 'mpeg2video') {
     args.push('-q:v', String(Math.round(2 + (1 - o.quality / 100) * 18)));
   } else {
-    const crf = crfFor(v, o.quality);
-    args.push('-crf', String(crf));
-    if (['libvpx-vp9', 'libaom-av1'].includes(v)) args.push('-b:v', '0', '-row-mt', '1');
+    args.push('-crf', String(crfFor(v, o.quality)));
+    if (['libvpx-vp9', 'libaom-av1'].includes(v)) args.push('-b:v', '0');
   }
+  if (['libvpx-vp9', 'libaom-av1'].includes(v)) args.push('-row-mt', '1');
+  if (o.keyframes && !f.pro && !f.lossless && !f.xdcam) args.push('-g', String(Math.round(o.keyframes)));
 
-  if (['libx264', 'libx265', 'h264_videotoolbox', 'hevc_videotoolbox', 'mpeg2video'].includes(v) && !f.xdcam) args.push('-pix_fmt', 'yuv420p');
+  if (['libx264', 'libx265', 'h264_videotoolbox', 'hevc_videotoolbox', 'mpeg2video', 'libsvtav1', 'libaom-av1'].includes(v) && !f.xdcam) args.push('-pix_fmt', 'yuv420p');
   if (['libx265', 'hevc_videotoolbox'].includes(v) && f.ext !== 'mkv') args.push('-tag:v', 'hvc1'); // so QuickTime and iPhones play it
-  if (['libsvtav1', 'libaom-av1'].includes(v)) args.push('-pix_fmt', 'yuv420p');
+  if (o.hdrToSdr !== false && HDR_TRANSFERS.includes(info.transfer)) args.push('-color_primaries', 'bt709', '-color_trc', 'bt709', '-colorspace', 'bt709');
 
+  const video = args.slice();
   if (audioKbps === 0) args.push('-an');
-  else if (/^pcm_|^flac$/.test(f.a)) args.push('-c:a', f.a); // no bitrate for uncompressed or lossless sound
-  else args.push('-c:a', f.a, '-b:a', `${audioKbps}k`);
-  if (audioKbps && f.ar) args.push('-ar', String(f.ar));
-
+  else {
+    if (/^pcm_|^flac$/.test(f.a)) args.push('-c:a', f.a); // no bitrate for uncompressed or lossless sound
+    else args.push('-c:a', f.a, '-b:a', `${audioKbps}k`);
+    args.push(...soundArgs(o, f.ar));
+  }
   if (['mp4', 'mov'].includes(f.ext)) args.push('-movflags', '+faststart');
   args.push('-map_metadata', o.keepMetadata ? '0' : '-1');
-  args.push(out);
 
+  if (o.twoPass && byRate && TWO_PASS.includes(v)) {
+    // two passes: the first only measures, so the second spends the bits where the picture needs them
+    const log = tmpFile('2pass').replace(/\.2pass$/, '');
+    const pass = (n) => (v === 'libx265' ? ['-x265-params', `pass=${n}:stats=${log}.log`] : ['-pass', String(n), '-passlogfile', log]);
+    try {
+      await runFfmpeg(id, [...video, ...pass(1), '-an', '-f', 'null', IS_WIN ? 'NUL' : '/dev/null'], duration, (p) => onProgress(p / 2));
+      await runFfmpeg(id, [...args, ...pass(2), out], duration, (p) => onProgress(0.5 + p / 2));
+    } finally {
+      for (const f2 of fs.readdirSync(path.dirname(log))) if (f2.startsWith(path.basename(log))) fs.rm(path.join(path.dirname(log), f2), () => {});
+    }
+    return out;
+  }
+
+  args.push(out);
   await runFfmpeg(id, args, duration, onProgress);
   return out;
 }

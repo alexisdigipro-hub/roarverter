@@ -14,7 +14,13 @@ An experiment of The Mad Lions Lab, in the Roar family (RoarMe, RoarTwin, RoarWr
   the same file is made with the software one.
 - **Video for the edit:** ProRes (Proxy, LT, 422, HQ, 4444 with alpha), DNxHR (LB, SQ, HQ, HQX, 444) in MOV or in
   MXF for Avid, XDCAM HD422 50 Mbit/s in MXF for broadcast, and FFV1 in MKV, lossless, for an archive.
-- **A target size:** say 25 MB, and the bitrate is worked out from the length (one pass, so it lands close to it).
+- **A target size or a bitrate:** say 25 MB, and the bitrate is worked out from the length; or a bitrate in Mb/s, as
+  Resolve's "Restrict to". With **two passes** it lands on it (a 1 MB target comes out at 0.96 MB).
+- **Look & frame:** HDR (iPhone HLG, HDR10) to Rec.709 SDR, so it does not look grey; a LUT (.cube, .3dl) on every
+  clip; the frame for social (16:9, 9:16, 1:1, 4:5, 2.39:1), cropped or whole with its own blurred copy behind;
+  anamorphic desqueeze (1.33×, 1.5×, 1.8×, 2×); a size of your own (width × height, with bars where the shape
+  differs); a keyframe every N frames.
+- **Sound:** loudness to −14 LUFS (web), −16 (podcast) or −23 (TV, EBU R128); mono or stereo; 44.1 or 48 kHz.
 - **Video to GIF or animated WebP**, with its own palette.
 - **The sound only:** MP3, M4A (AAC), WAV 16-bit or 24-bit 48 kHz, AIFF 24-bit, ALAC, FLAC, OGG (Opus).
 - **A still:** one frame, JPG or PNG, at any moment.
