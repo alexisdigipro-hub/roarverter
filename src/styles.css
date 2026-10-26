@@ -28,6 +28,8 @@ body.win32 .top { padding-right: 150px; }
 .top .spacer { flex: 1; -webkit-app-region: drag; }
 .wm { font-size: 17px; letter-spacing: .04em; white-space: nowrap; }
 .wm span { font-weight: 200; } .wm b { font-weight: 800; }
+.ver { margin-left: 10px; padding: 3px 9px; border-radius: 999px; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.1); font-size: 11px; font-weight: 600; letter-spacing: .02em; color: rgba(255,255,255,.55); white-space: nowrap; }
+.ver:empty { display: none; }
 .top .seg button { height: 26px; padding: 0 10px; font-size: 11.5px; letter-spacing: .06em; }
 .btn.upd .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 10px var(--ok); }
 

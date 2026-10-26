@@ -620,6 +620,7 @@ $$('.seg').forEach((box) => lensObserver.observe(box));
 
 // a new version downloaded in the background: one tap restarts into it
 const showUpdate = (u) => { $('#update').hidden = u?.status !== 'ready'; };
+window.api.version().then((v) => { $('#ver').textContent = v ? `v${v}` : ''; }).catch(() => {});
 window.api.update.state().then(showUpdate);
 window.api.update.on(showUpdate);
 $('#update').addEventListener('click', () => window.api.update.install());
