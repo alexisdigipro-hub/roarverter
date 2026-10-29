@@ -1,22 +1,30 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#121316"/><stop offset=".55" stop-color="#141417"/><stop offset="1" stop-color="#3a0f0d"/></linearGradient>
-    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="14" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3a4049"/><stop offset=".55" stop-color="#1f2328"/><stop offset="1" stop-color="#15171b"/></linearGradient>
+    <radialGradient id="lit" cx="50%" cy="-8%" r="75%"><stop offset="0" stop-color="#7a828e" stop-opacity=".55"/><stop offset="1" stop-color="#7a828e" stop-opacity="0"/></radialGradient>
+    <radialGradient id="glow" cx="50%" cy="56%" r="46%"><stop offset="0" stop-color="#d40000" stop-opacity=".2"/><stop offset=".55" stop-color="#d40000" stop-opacity=".05"/><stop offset="1" stop-color="#d40000" stop-opacity="0"/></radialGradient>
+    <linearGradient id="red" gradientUnits="userSpaceOnUse" x1="0" y1="250" x2="0" y2="780"><stop offset="0" stop-color="#ff5a4b"/><stop offset=".5" stop-color="#ec1a0c"/><stop offset="1" stop-color="#b80000"/></linearGradient>
+    <linearGradient id="edge" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".3"/><stop offset=".35" stop-color="#fff" stop-opacity=".07"/><stop offset="1" stop-color="#fff" stop-opacity=".04"/></linearGradient>
+    <filter id="bloom" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="10"/></filter>
+    <clipPath id="tile"><rect width="1024" height="1024" rx="228"/></clipPath>
   </defs>
-  <rect x="100" y="100" width="824" height="824" rx="185" fill="url(#bg)"/>
-  <rect x="100.5" y="100.5" width="823" height="823" rx="185" fill="none" stroke="#fff" stroke-opacity=".08" stroke-width="3"/>
-  <!-- the source: a picture -->
-  <rect x="236" y="300" width="300" height="236" rx="40" fill="none" stroke="#f2f2f0" stroke-width="34"/>
-  <circle cx="318" cy="380" r="26" fill="#f2f2f0"/>
-  <path d="M262 506 L372 422 L444 470 L520 414" fill="none" stroke="#f2f2f0" stroke-width="30" stroke-linejoin="round" stroke-linecap="round"/>
-  <!-- the result: a red frame with play -->
-  <g filter="url(#glow)">
-    <rect x="488" y="488" width="300" height="236" rx="40" fill="none" stroke="#ff453a" stroke-width="34"/>
-    <path d="M610 560 L700 606 L610 652 Z" fill="#ff453a" stroke="#ff453a" stroke-width="16" stroke-linejoin="round"/>
+  <g clip-path="url(#tile)">
+    <rect width="1024" height="1024" fill="url(#bg)"/>
+    <rect width="1024" height="1024" fill="url(#lit)"/>
+    <rect width="1024" height="1024" fill="url(#glow)"/>
+    <g fill="none" stroke="#ff1a0d" stroke-width="40" stroke-linecap="round" stroke-linejoin="round" opacity=".22" filter="url(#bloom)">
+  <path d="M500 280 H340 a56 56 0 0 0 -56 56 V494 a56 56 0 0 0 56 56 H372"/>
+  <path d="M300 500 L384 418 L446 476"/>
+  <rect x="470" y="474" width="270" height="250" rx="56"/>
+  <path d="M580 556 L652 599 L580 642 Z" fill="url(#red)" stroke-width="20"/>
+  <path d="M590 286 a170 170 0 0 1 134 128"/><path d="M682 392 L726 432 L764 384"/></g>
+    <g fill="none" stroke="url(#red)" stroke-width="40" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M500 280 H340 a56 56 0 0 0 -56 56 V494 a56 56 0 0 0 56 56 H372"/>
+  <path d="M300 500 L384 418 L446 476"/>
+  <rect x="470" y="474" width="270" height="250" rx="56"/>
+  <path d="M580 556 L652 599 L580 642 Z" fill="url(#red)" stroke-width="20"/>
+  <path d="M590 286 a170 170 0 0 1 134 128"/><path d="M682 392 L726 432 L764 384"/></g>
+    
+    <rect x="3" y="3" width="1018" height="1018" rx="225" fill="none" stroke="url(#edge)" stroke-width="6"/>
   </g>
-  <!-- the turn between them -->
-  <path d="M600 300 C700 300 742 346 742 420" fill="none" stroke="#f2f2f0" stroke-width="30" stroke-linecap="round"/>
-  <path d="M704 392 L742 436 L780 392" fill="none" stroke="#f2f2f0" stroke-width="30" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M424 724 C324 724 282 678 282 604" fill="none" stroke="#ff453a" stroke-width="30" stroke-linecap="round"/>
-  <path d="M320 632 L282 588 L244 632" fill="none" stroke="#ff453a" stroke-width="30" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>
