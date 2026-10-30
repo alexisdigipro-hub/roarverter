@@ -17,6 +17,7 @@ contextBridge.exposeInMainWorld('api', {
     state: () => ipcRenderer.invoke('rv:update-state'),
     check: () => ipcRenderer.invoke('rv:update-check'),
     install: () => ipcRenderer.invoke('rv:update-install'),
+    auto: (on) => ipcRenderer.invoke('rv:update-auto', on),
     on: (cb) => ipcRenderer.on('rv:update', (_e, s) => cb(s)),
   },
 });

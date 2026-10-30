@@ -16,10 +16,7 @@
     <span class="ver" id="ver"></span>
     <div class="spacer"></div>
     <button class="btn sm upd" id="update" hidden><span class="dot"></span><span data-i18n>Restart to update</span></button>
-    <div class="seg" id="lang">
-      <button data-v="en">EN</button>
-      <button data-v="el">GR</button>
-    </div>
+    <button class="ib" id="openSettings" data-i18n-label="Settings" aria-label="Settings" title="Settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
   </header>
 
   <main>
@@ -273,6 +270,40 @@
       </div>
     </aside>
   </main>
+
+  <!-- Settings (Alex, 30 Oct: "RoarMorph needs settings and auto update"): the language, the updates, the notification
+       when a batch ends, a reset. Cmd/Ctrl+, opens it too. -->
+  <div class="veil" id="settings" hidden>
+    <div class="sheet set-sheet" role="dialog" aria-modal="true" aria-labelledby="setTitle">
+      <div class="set-head"><h3 id="setTitle" data-i18n>Settings</h3><button class="ib" id="closeSettings" data-i18n-label="Close" aria-label="Close"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+
+      <div class="label" data-i18n>Language</div>
+      <div class="set-box">
+        <div class="set-row"><span><span data-i18n>The words of the app</span></span>
+          <div class="seg" id="lang"><button data-v="en">English</button><button data-v="el">Ελληνικά</button></div></div>
+      </div>
+
+      <div class="label" data-i18n>Updates</div>
+      <div class="set-box">
+        <div class="set-row"><span><b id="updName">RoarMorph</b><small id="updStatus"></small></span>
+          <button class="btn sm" id="updCheck" data-i18n>Check now</button>
+          <button class="btn sm main" id="updRestart" hidden data-i18n>Restart to update</button></div>
+        <label class="check"><input type="checkbox" id="autoUpdate" /><span><span data-i18n>Update by itself</span><small data-i18n>Looks for a new version every two hours, brings it in the background and puts it in when RoarMorph closes.</small></span></label>
+      </div>
+
+      <div class="label" data-i18n>When the files are ready</div>
+      <div class="set-box">
+        <label class="check"><input type="checkbox" id="notify" /><span><span data-i18n>Tell me</span><small data-i18n>A notification when a batch is done while you are in another app.</small></span></label>
+        <label class="check"><input type="checkbox" id="notifySound" /><span><span data-i18n>With a sound</span><small data-i18n>The notification plays the computer’s sound.</small></span></label>
+      </div>
+
+      <div class="set-foot">
+        <button class="btn sm" id="resetSettings" data-i18n>Reset the choices</button>
+        <span class="spacer"></span>
+        <a class="set-link" href="https://themadlions.com/legal/roarmorph/" target="_blank" rel="noopener" data-i18n>Privacy &amp; Terms</a>
+      </div>
+    </div>
+  </div>
 
   <script src="renderer.js"></script>
 </body>

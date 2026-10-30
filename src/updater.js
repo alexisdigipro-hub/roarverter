@@ -12,7 +12,9 @@ const path = require('path')
 const REPO = 'alexisdigipro-hub/roarverter'
 const EVERY = 2 * 3600e3
 
-let state = { status: 'idle', version: '', progress: 0, error: '' }
+let state = { status: 'idle', version: '', progress: 0, error: '', checkedAt: 0 }
+// Settings > Update by itself (Alex, 30 Oct): off, it looks only when asked (Check now)
+let auto = true
 let file = ''
 let timer = null
 let busy = false
@@ -47,7 +49,7 @@ async function check() {
     if (!r.ok) throw new Error(`GitHub ${r.status}`)
     const d = await r.json()
     const version = (String(d.name || '').match(/(\d+\.\d+\.\d+)/) || [])[1] || ''
-    if (!version || !newer(version, app.getVersion())) { send({ status: 'idle', version: '' }); return state }
+    if (!version || !newer(version, app.getVersion())) { send({ status: 'idle', version: '', checkedAt: Date.now() }); return state }
     const asset = pick(d.assets || [])
     if (!asset) { send({ status: 'idle', version: '' }); return state }
     fs.mkdirSync(dir(), { recursive: true })
@@ -76,7 +78,7 @@ async function check() {
       fs.renameSync(part, target)
     }
     file = target
-    send({ status: 'ready', version, progress: 100 })
+    send({ status: 'ready', version, progress: 100, checkedAt: Date.now() })
     if (notified !== version && Notification.isSupported()) {
       notified = version
       const n = new Notification({ title: `RoarMorph ${version} is ready`, body: 'Restart RoarMorph to update. It takes a few seconds.' })
@@ -84,7 +86,7 @@ async function check() {
       n.show()
     }
   } catch (e) {
-    send({ status: 'error', error: String(e?.message || e) })
+    send({ status: 'error', error: String(e?.message || e), checkedAt: Date.now() })
   } finally {
     busy = false
   }
@@ -153,10 +155,11 @@ function start(ipcMain, onQuitting, onState) {
   ipcMain.handle('rv:update-state', () => state)
   ipcMain.handle('rv:update-check', () => check())
   ipcMain.handle('rv:update-install', () => restart(onQuitting))
+  ipcMain.handle('rv:update-auto', (_e, on) => { auto = on !== false; return auto })
   // quitting with an update waiting installs it (no reopening)
   app.on('will-quit', () => { if (state.status === 'ready') install(false) })
-  setTimeout(check, 15e3)
-  timer = setInterval(check, EVERY)
+  setTimeout(() => { if (auto) check() }, 15e3)
+  timer = setInterval(() => { if (auto) check() }, EVERY)
 }
 
 module.exports = { start, check, restart, getState: () => state, MAC_SWAP }
