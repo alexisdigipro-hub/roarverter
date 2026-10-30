@@ -3,6 +3,7 @@ const fs = require('fs');
 const os = require('os');
 const { spawn, execFile } = require('child_process');
 const sharp = require('sharp');
+const psd = require('./psd');
 
 const IS_WIN = process.platform === 'win32';
 const IS_MAC = process.platform === 'darwin';
@@ -179,6 +180,34 @@ function scaleFilter(maxW, maxH) {
 
 // ---------- Pictures ----------
 
+// a PSD's flattened picture as a temporary PNG
+async function psdToPng(input) {
+  const img = psd.readPsdImage(input);
+  const tmp = tmpFile('png');
+  await sharp(img.data, { raw: { width: img.width, height: img.height, channels: 4 }, limitInputPixels: false }).png({ compressionLevel: 1 }).toFile(tmp);
+  return tmp;
+}
+
+/* every layer of a PSD as its own PNG, the size of the document with the layer in its place (Alex, 30 Oct), in a
+   folder beside the converted file: "<name>_converted layers/01 Background.png". Returns the folder and how many. */
+async function splitPsdLayers(input, o = {}) {
+  const parent = o.outputDir || path.dirname(input);
+  const base = path.basename(input, path.extname(input)) + (o.suffix ?? '_converted') + ' layers';
+  let dir = path.join(parent, base);
+  for (let n = 2; fs.existsSync(dir); n++) dir = path.join(parent, `${base} ${n}`);
+  fs.mkdirSync(dir, { recursive: true });
+  const info = psd.readPsdInfo(input);
+  const digits = String(info.layers).length < 2 ? 2 : String(info.layers).length;
+  const used = new Set();
+  const count = await psd.eachPsdLayer(input, async (l) => {
+    let name = `${String(l.index + 1).padStart(digits, '0')} ${(l.name || 'Layer').replace(/[\\/:*?"<>|\x00-\x1f]/g, '_').trim().slice(0, 80)}`;
+    while (used.has(name.toLowerCase())) name += '_';
+    used.add(name.toLowerCase());
+    await sharp(l.data, { raw: { width: l.width, height: l.height, channels: 4 }, limitInputPixels: false }).png().toFile(path.join(dir, `${name}.png`));
+  });
+  return { dir, count };
+}
+
 const tmpFile = (ext) => path.join(os.tmpdir(), `rv-${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`);
 const sips = (args) => new Promise((res, rej) => execFile('sips', args, (e, _o, se) => (e ? rej(new Error(String(se || e.message).trim().split('\n').pop())) : res())));
 
@@ -200,6 +229,17 @@ async function convertImage(id, input, o) {
   const fmt = o.format === 'original' ? normalizeImageExt(path.extname(input).slice(1)) : o.format;
   const ext = fmt === 'jpeg' ? 'jpg' : fmt;
   const out = o._out || outputPathFor(input, ext, o);
+
+  // a PSD is read by RoarMorph itself (psd.js), the same on a Mac and on Windows; what it cannot read goes on below
+  // to the Mac's sips or ffmpeg
+  if (path.extname(input).toLowerCase() === '.psd' && !o._fromPsd) {
+    let flat = null;
+    try { flat = await psdToPng(input); } catch { flat = null; }
+    if (flat) {
+      try { return await convertImage(id, flat, { ...o, format: fmt, _out: out, _fromPsd: true }); }
+      finally { fs.rm(flat, () => {}); }
+    }
+  }
 
   if (fmt === 'bmp' || fmt === 'ico') {
     // sharp does not write BMP or ICO: ffmpeg does
@@ -279,7 +319,8 @@ function normalizeImageExt(ext) {
   if (['tif', 'tiff'].includes(ext)) return 'tiff';
   if (['png', 'webp', 'avif', 'gif', 'bmp'].includes(ext)) return ext;
   if (['heic', 'heif'].includes(ext) && IS_MAC) return 'heic';
-  return 'jpeg'; // RAW, PSD, SVG and the like become JPG
+  if (ext === 'psd') return 'png'; // a PSD keeps its transparency
+  return 'jpeg'; // RAW, SVG and the like become JPG
 }
 
 // ---------- Video and sound ----------
@@ -582,5 +623,5 @@ async function encodeVideo(id, base, v, f, o, info, duration, out, onProgress) {
 }
 
 module.exports = {
-  IMAGE_EXT, VIDEO_EXT, AUDIO_EXT, MAC_ONLY_EXT, setFfmpegPath, kindOf, probe, streamFacts, jpegQuality, convertImage, convertMedia, cancel, cancelAll,
+  IMAGE_EXT, VIDEO_EXT, AUDIO_EXT, MAC_ONLY_EXT, setFfmpegPath, kindOf, probe, streamFacts, jpegQuality, splitPsdLayers, convertImage, convertMedia, cancel, cancelAll,
 };

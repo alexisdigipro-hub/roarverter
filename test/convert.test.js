@@ -13,6 +13,33 @@ const O = path.join(T, 'out');
 fs.mkdirSync(O);
 const ff = (...a) => execFileSync(FF, ['-hide_banner', '-loglevel', 'error', '-y', ...a]);
 
+// a small Photoshop file, written by hand: 40 x 20 RGB, a blue background layer and a red layer over its right half
+// (named in Greek, through the Unicode name block), raw data, and the flattened picture
+function makePsd() {
+  const W = 40, H = 20;
+  const u16 = (v) => { const b = Buffer.alloc(2); b.writeUInt16BE(v); return b; };
+  const i16 = (v) => { const b = Buffer.alloc(2); b.writeInt16BE(v); return b; };
+  const u32 = (v) => { const b = Buffer.alloc(4); b.writeUInt32BE(v); return b; };
+  const plane = (w, h, v) => Buffer.alloc(w * h, v);
+  const pascal = (s) => { const n = Buffer.from(s, 'latin1'); const len = n.length + 1; return Buffer.concat([Buffer.from([n.length]), n, Buffer.alloc((4 - (len % 4)) % 4)]); };
+  const luni = (s) => { const t = Buffer.from(s, 'utf16le').swap16(); const body = Buffer.concat([u32(s.length), t]); const pad = body.length % 2 ? Buffer.alloc(1) : Buffer.alloc(0); return Buffer.concat([Buffer.from('8BIMluni'), u32(body.length), body, pad]); };
+  const layer = (top, left, h, w, rgb, name, uname) => {
+    const chans = [[-1, plane(w, h, 255)], [0, plane(w, h, rgb[0])], [1, plane(w, h, rgb[1])], [2, plane(w, h, rgb[2])]];
+    const extra = Buffer.concat([u32(0), u32(0), pascal(name), uname ? luni(uname) : Buffer.alloc(0)]);
+    const rec = Buffer.concat([u32(top), u32(left), u32(top + h), u32(left + w), u16(chans.length), ...chans.map(([id, d]) => Buffer.concat([i16(id), u32(d.length + 2)])),
+      Buffer.from('8BIMnorm'), Buffer.from([255, 0, 0, 0]), u32(extra.length), extra]);
+    const data = Buffer.concat(chans.map(([, d]) => Buffer.concat([u16(0), d])));
+    return { rec, data };
+  };
+  const a = layer(0, 0, H, W, [0, 0, 255], 'Background');
+  const b = layer(0, 20, H, 20, [255, 0, 0], 'Kokkino', 'Κόκκινο');
+  let li = Buffer.concat([i16(2), a.rec, b.rec, a.data, b.data]);
+  if (li.length % 2) li = Buffer.concat([li, Buffer.alloc(1)]);
+  const lm = Buffer.concat([u32(li.length), li, u32(0)]);
+  const flat = (c) => { const p = Buffer.alloc(W * H); for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) p[y * W + x] = x >= 20 ? [255, 0, 0][c] : [0, 0, 255][c]; return p; };
+  return Buffer.concat([Buffer.from('8BPS'), u16(1), Buffer.alloc(6), u16(3), u32(H), u32(W), u16(8), u16(3), u32(0), u32(0), u32(lm.length), lm, u16(0), flat(0), flat(1), flat(2)]);
+}
+
 ff('-f', 'lavfi', '-i', 'testsrc2=size=1920x1080:rate=30:duration=6', '-f', 'lavfi', '-i', 'sine=frequency=440:duration=6', '-c:v', 'libx264', '-crf', '10', '-c:a', 'aac', '-shortest', path.join(T, 'test video.mov'));
 ff('-f', 'lavfi', '-i', 'testsrc2=size=1080x1920:rate=30:duration=3', '-c:v', 'libx264', path.join(T, 'vertical.mp4'));
 ff('-f', 'lavfi', '-i', 'mandelbrot=size=3000x2000', '-frames:v', '1', path.join(T, 'photo.png'));
@@ -139,6 +166,29 @@ const jobs = [
       else { failed++; console.log(`✗ ${label}: ${e.message}`); }
     }
   }
+  // a PSD read by RoarMorph itself (psd.js): its flattened picture and each layer as its own PNG (Alex, 30 Oct)
+  {
+    const bad = [];
+    const file = path.join(T, 'layers.psd');
+    fs.writeFileSync(file, makePsd());
+    const info = require('../src/psd').readPsdInfo(file);
+    if (info.width !== 40 || info.height !== 20 || info.layers !== 2 || info.depth !== 8 || info.mode !== 'RGB') bad.push(`info ${JSON.stringify(info)}`);
+    if (info.names.join('|') !== 'Background|Κόκκινο') bad.push(`names ${info.names.join('|')}`);
+    const png = await c.convertImage('psd', file, { format: 'png', quality: 100, outputDir: O, suffix: '_psd' });
+    const raw = await require('sharp')(png).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+    const at = (x, y) => [...raw.data.subarray((y * raw.info.width + x) * 4, (y * raw.info.width + x) * 4 + 4)].join(',');
+    if (raw.info.width !== 40 || at(2, 2) !== '0,0,255,255' || at(30, 10) !== '255,0,0,255') bad.push(`flattened ${raw.info.width} ${at(2, 2)} ${at(30, 10)}`);
+    const split = await c.splitPsdLayers(file, { outputDir: O, suffix: '_psd' });
+    const names = fs.readdirSync(split.dir).sort();
+    if (split.count !== 2 || names.join('|') !== '01 Background.png|02 Κόκκινο.png') bad.push(`layers ${split.count} ${names.join('|')}`);
+    else {
+      const red = await require('sharp')(path.join(split.dir, names[1])).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+      const px = (x, y) => [...red.data.subarray((y * 40 + x) * 4, (y * 40 + x) * 4 + 4)].join(',');
+      if (red.info.width !== 40 || px(30, 10) !== '255,0,0,255' || px(2, 2) !== '0,0,0,0') bad.push(`red layer ${px(30, 10)} ${px(2, 2)}`);
+    }
+    if (bad.length) { failed++; console.log(`✗ PSD: ${bad.join(', ')}`); } else console.log('✓ PSD: flattened picture and 2 layers as PNG');
+  }
+
   // what a dropped file is made of (Alex, 30 Oct): bitrates, profile, bit depth, chroma, a JPEG's quality
   {
     const bad = [];
