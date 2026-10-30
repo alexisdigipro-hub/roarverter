@@ -42,6 +42,17 @@ Mb/s, and about how big the videos in the list will come out (their length, the 
 close, as Resolve's "Restrict to" (convert.js bitrateMbps); Two passes in More options lands on it exactly; a Target
 size in More options still wins over both. A bitrate set in More options before 0.5.1 becomes this choice.
 
+## PSD and its layers
+Since 0.5.2 (Alex, 30 Oct: "take a PSD and make it a picture, and if it has layers ask whether to split it into a PNG
+per layer"): RoarMorph reads Photoshop files itself (`src/psd.js`, no library), the same on a Mac and on Windows: RGB,
+grayscale and CMYK, 8, 16 and 32 bits, raw, RLE and ZIP. The flattened picture Photoshop keeps becomes any picture
+format (Same keeps it a PNG, with its transparency). A PSD with more than one layer asks when it is dropped: Only the
+picture, or Each layer as PNG too; the chip on its row changes it later. Each layer comes out the size of the document,
+in its place, with its opacity, as "01 Background.png" in a folder "<name>_converted layers" beside the picture
+(`convert.js splitPsdLayers`). Layers are read one at a time, so a big PSD does not fill the memory. PSB (large
+document), Lab and indexed colour are not read by psd.js: those go to the Mac's sips or ffmpeg as before. Tested with a
+hand-written PSD in test/convert.test.js.
+
 ## What a file is made of
 Since 0.5.1 (Alex, 30 Oct: "read its bitrate and compression from the metadata and write it"): every dropped file shows
 a line under its chips. A video: codec and profile (H.264 High, ProRes HQ), its bitrate, frame rate, bit depth and

@@ -32,3 +32,6 @@ text goes through `t()` or a data-i18n attribute and gets its Greek.
 - Settings (Alex, 30 Oct, 0.5.0): the gear in the top row opens a glass window (index.html #settings, renderer.js setOpen):
   language, updates (updater.js auto flag through rv:update-auto, checkedAt), the notification when a batch ends (tellDone),
   reset. New settings go there, as a DEFAULTS key with an input of the same id.
+- PSD (Alex, 30 Oct, 0.5.2): src/psd.js reads Photoshop files (header, layers, flattened picture; RGB/gray/CMYK, 8/16/32-bit,
+  raw/RLE/ZIP) with positioned reads, layer by layer; convert.js psdToPng / splitPsdLayers; the question when a PSD with
+  layers is dropped is renderer.js askLayers. Bit depth shows as "N-bit colour" on every row.

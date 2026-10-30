@@ -4,6 +4,7 @@ const fs = require('fs');
 const sharp = require('sharp');
 const conv = require('./convert');
 const updater = require('./updater');
+const psd = require('./psd');
 const { IMAGE_EXT, VIDEO_EXT, AUDIO_EXT, MAC_ONLY_EXT, kindOf, probe } = conv;
 
 /* Roarverter is called RoarMorph since 30 Oct (Alex): its settings and everything it keeps stay in the old folder,
@@ -127,6 +128,10 @@ ipcMain.handle('inspect', async (_e, paths) => {
     let meta = {};
     if (kind === 'image') {
       // the picture's own make-up, shown on its row: format, bit depth, chroma, a JPEG's quality (Alex, 30 Oct)
+      // a PSD: RoarMorph reads it itself (psd.js): its size, bit depth, colour mode and how many layers it has
+      if (/\.psd$/i.test(file)) {
+        try { const p = psd.readPsdInfo(file); return { file, name: path.basename(file), kind, size, width: p.width, height: p.height, format: 'psd', bitDepth: p.depth, colorMode: p.mode, psdLayers: p.layers }; } catch {}
+      }
       try {
         const m = await sharp(file).metadata();
         meta = { width: m.width, height: m.height, format: m.format, channels: m.channels, alpha: !!m.hasAlpha, progressive: !!m.isProgressive,
@@ -150,7 +155,12 @@ ipcMain.handle('convert', async (_e, { id, file, kind, options }) => {
     const out = kind === 'image'
       ? await conv.convertImage(id, file, options)
       : await conv.convertMedia(id, file, options, send);
-    return { ok: true, out, size: fs.statSync(out).size };
+    // a PSD's layers, each as its own PNG, when the person said so
+    let layers = null;
+    if (kind === 'image' && options.splitLayers && /\.psd$/i.test(file)) {
+      try { layers = await conv.splitPsdLayers(file, options); } catch (e) { layers = { error: e.message }; }
+    }
+    return { ok: true, out, size: fs.statSync(out).size, layers };
   } catch (e) {
     return { ok: false, error: e.message };
   }
