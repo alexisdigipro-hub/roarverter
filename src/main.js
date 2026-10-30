@@ -21,9 +21,9 @@ let quitting = false;
 function createWindow() {
   const frame = process.platform === 'darwin'
     ? { titleBarStyle: 'hiddenInset', trafficLightPosition: { x: 16, y: 21 } }
-    : { titleBarStyle: 'hidden', titleBarOverlay: { color: '#16181d', symbolColor: '#eef0f3', height: 58 } };
+    : { titleBarStyle: 'hidden', titleBarOverlay: { color: '#2b3038', symbolColor: '#eef0f3', height: 58 } };
   win = new BrowserWindow({
-    width: 1240, height: 840, minWidth: 900, minHeight: 600, show: false, backgroundColor: '#16181d', autoHideMenuBar: true, ...frame,
+    width: 1240, height: 840, minWidth: 900, minHeight: 600, show: false, backgroundColor: '#1b1e23', autoHideMenuBar: true, ...frame,
     title: 'RoarMorph',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -33,6 +33,10 @@ function createWindow() {
   });
   win.once('ready-to-show', () => win.show());
   win.loadFile(path.join(__dirname, 'index.html'));
+  // a link (Settings > Privacy & Terms) opens in the browser, never inside the app
+  const outside = (url) => { if (/^https:\/\//i.test(url)) shell.openExternal(url); };
+  win.webContents.setWindowOpenHandler(({ url }) => { outside(url); return { action: 'deny' }; });
+  win.webContents.on('will-navigate', (e, url) => { if (!url.startsWith('file:')) { e.preventDefault(); outside(url); } });
 }
 
 if (!app.requestSingleInstanceLock()) app.quit();

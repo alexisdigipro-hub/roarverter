@@ -35,6 +35,14 @@ An experiment of The Mad Lions Lab, in the Roar family (RoarMe, RoarTwin, RoarWr
   named in a message, not dropped silently.
 - English, with Greek as a choice. Updates itself from the GitHub releases.
 
+## Settings
+Since 0.5.0 (Alex, 30 Oct: "RoarMorph needs settings and auto update"): the gear at the top right, or Cmd/Ctrl+,.
+Language (English, Ελληνικά); Updates: the version, Check now, Restart to update when one is ready, and Update by
+itself (on: it looks every two hours, brings the new version in the background and puts it in when RoarMorph closes;
+off: it looks only on Check now; src/updater.js `rv:update-auto`); When the files are ready: a notification when a batch
+ends while RoarMorph is not in front, with or without the computer's sound; Reset the choices (the conversion choices
+back to the start, language and updates kept); Privacy & Terms (opens in the browser).
+
 ## Look
 Since 0.4.1 (30 Oct) RoarMorph wears RoarMail's look, as RoarKit, RoarWriter and RoarList do: `src/theme.css` over
 `src/styles.css` (graphite glass columns floating on a graphite backdrop, one red accent that glows, the chosen thing lit

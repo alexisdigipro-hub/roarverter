@@ -29,3 +29,6 @@ text goes through `t()` or a data-i18n attribute and gets its Greek.
 - The name (Alex, 30 Oct): RoarMorph on screen, in the app file and the installers; bundle id, settings folder (main.js
   setPath), repo and the Roarverter-* release copies stay Roarverter, and the Mac app keeps Contents/MacOS/Roarverter
   (scripts/adhoc-sign.js) for the 0.3.x updater. See README.
+- Settings (Alex, 30 Oct, 0.5.0): the gear in the top row opens a glass window (index.html #settings, renderer.js setOpen):
+  language, updates (updater.js auto flag through rv:update-auto, checkedAt), the notification when a batch ends (tellDone),
+  reset. New settings go there, as a DEFAULTS key with an input of the same id.
