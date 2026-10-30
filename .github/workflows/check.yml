@@ -1,4 +1,4 @@
-name: Check Roarverter
+name: Check RoarMorph
 
 # Every push and pull request: the scripts parse, and every conversion works on real files made with ffmpeg
 # (pictures in every format, videos, sound, a target size, trims, an upright video, the errors that must come back).

@@ -1,8 +1,8 @@
-// Roarverter updates itself, like the other Roar apps (no paid Apple certificate, so not Electron's own updater).
+// RoarMorph (Roarverter until 30 Oct) updates itself, like the other Roar apps (no paid Apple certificate, so not Electron's own updater).
 // It looks at the newest GitHub release itself, downloads the right installer in the background, and when it
 // is ready the page shows "Restart to update". Restarting (or simply quitting) swaps the app for the new one:
-// on a Mac a small script waits for Roarverter to close, copies the new Roarverter.app over the old one and opens it; on
-// Windows the installer runs silently and opens Roarverter again. If the app cannot be replaced where it sits (a
+// on a Mac a small script waits for RoarMorph to close, copies the new app over the old one and opens it; on
+// Windows the installer runs silently and opens RoarMorph again. If the app cannot be replaced where it sits (a
 // folder it may not write to), the downloaded installer is opened instead, as before.
 const { app, BrowserWindow, Notification, net, shell } = require('electron')
 const { spawn } = require('child_process')
@@ -43,7 +43,7 @@ async function check() {
   busy = true
   try {
     send({ status: 'checking', error: '' })
-    const r = await net.fetch(`https://api.github.com/repos/${REPO}/releases/latest`, { headers: { Accept: 'application/vnd.github+json', 'User-Agent': 'Roarverter' } })
+    const r = await net.fetch(`https://api.github.com/repos/${REPO}/releases/latest`, { headers: { Accept: 'application/vnd.github+json', 'User-Agent': 'RoarMorph' } })
     if (!r.ok) throw new Error(`GitHub ${r.status}`)
     const d = await r.json()
     const version = (String(d.name || '').match(/(\d+\.\d+\.\d+)/) || [])[1] || ''
@@ -56,7 +56,7 @@ async function check() {
     const target = path.join(dir(), asset.name.includes(version) ? asset.name : `${version}-${asset.name}`)
     if (!(fs.existsSync(target) && fs.statSync(target).size === asset.size)) {
       send({ status: 'downloading', version, progress: 0 })
-      const res = await net.fetch(asset.browser_download_url, { headers: { 'User-Agent': 'Roarverter' } })
+      const res = await net.fetch(asset.browser_download_url, { headers: { 'User-Agent': 'RoarMorph' } })
       if (!res.ok || !res.body) throw new Error(`download ${res.status}`)
       const total = Number(res.headers.get('content-length')) || asset.size || 0
       const part = `${target}.part`
@@ -79,7 +79,7 @@ async function check() {
     send({ status: 'ready', version, progress: 100 })
     if (notified !== version && Notification.isSupported()) {
       notified = version
-      const n = new Notification({ title: `Roarverter ${version} is ready`, body: 'Restart Roarverter to update. It takes a few seconds.' })
+      const n = new Notification({ title: `RoarMorph ${version} is ready`, body: 'Restart RoarMorph to update. It takes a few seconds.' })
       n.on('click', () => { BrowserWindow.getAllWindows()[0]?.show() })
       n.show()
     }
@@ -91,7 +91,7 @@ async function check() {
   return state
 }
 
-// where this Roarverter.app lives (…/Roarverter.app/Contents/MacOS/Roarverter)
+// where this app lives (…/RoarMorph.app/Contents/MacOS/RoarMorph)
 const macBundle = () => path.resolve(path.dirname(process.execPath), '..', '..')
 const canReplace = (bundle) => {
   if (!/\.app$/.test(bundle) || bundle.includes('/Volumes/') || bundle.includes('AppTranslocation')) return false
@@ -114,20 +114,24 @@ function install(relaunch) {
   return true
 }
 
-// waits for Roarverter to close, puts the new Roarverter.app in place of the old (the old stays if anything fails), opens it
+// waits for RoarMorph to close, puts the new RoarMorph.app in place of the old (the old stays if anything fails), opens it
 const MAC_SWAP = `#!/bin/bash
 PID="$1"; DMG="$2"; APP="$3"; RELAUNCH="$4"
 for i in $(seq 1 100); do kill -0 "$PID" 2>/dev/null || break; sleep 0.2; done
 MNT="$(mktemp -d /tmp/roarverter-update.XXXXXX)"
 if hdiutil attach -nobrowse -readonly -noautoopen -mountpoint "$MNT" "$DMG" >/dev/null 2>&1; then
   SRC="$(ls -d "$MNT"/*.app 2>/dev/null | head -1)"
-  if [ -n "$SRC" ] && ditto "$SRC" "$APP.new" && [ -x "$APP.new/Contents/MacOS/Roarverter" ]; then
-    rm -rf "$APP.old" && mv "$APP" "$APP.old" && mv "$APP.new" "$APP" && rm -rf "$APP.old"
-    [ -d "$APP" ] || mv "$APP.old" "$APP"
+  # the new app keeps its own name (Roarverter became RoarMorph, 30 Oct), next to where the old one was
+  DEST="$(dirname "$APP")/$(basename "$SRC")"
+  EXE="$(defaults read "$SRC/Contents/Info" CFBundleExecutable 2>/dev/null)"
+  if [ -n "$SRC" ] && [ -n "$EXE" ] && ditto "$SRC" "$DEST.new" && [ -x "$DEST.new/Contents/MacOS/$EXE" ]; then
+    rm -rf "$APP.old" && mv "$APP" "$APP.old"
+    [ "$DEST" != "$APP" ] && rm -rf "$DEST"
+    if mv "$DEST.new" "$DEST"; then rm -rf "$APP.old"; APP="$DEST"; else mv "$APP.old" "$APP"; rm -rf "$DEST.new"; fi
     xattr -dr com.apple.quarantine "$APP" 2>/dev/null
     rm -f "$DMG"
   else
-    rm -rf "$APP.new"
+    rm -rf "$DEST.new"
   fi
   hdiutil detach "$MNT" -quiet -force >/dev/null 2>&1
 fi

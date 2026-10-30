@@ -1,4 +1,11 @@
-# Roarverter
+# RoarMorph
+
+(Roarverter until 30 Oct 2026.) The name: on screen, the app file (RoarMorph.app, RoarMorph.exe) and the installers are
+RoarMorph since 0.4.0. Kept as Roarverter on purpose, so nothing installed or saved breaks: the bundle id
+com.themadlions.roarverter, the settings folder (main.js setPath), the repository (updater REPO), and the Roarverter-*.dmg/exe
+copies on each release for old download links. The Mac app carries Contents/MacOS/Roarverter, a link to RoarMorph
+(scripts/adhoc-sign.js): the 0.3.x updater takes a new app only if it holds a program of that name. 0.4.0's updater
+reads the new app's own CFBundleExecutable and puts RoarMorph.app in place of Roarverter.app on the next update.
 
 Converts and compresses pictures, videos and sound, all on your own computer: nothing is uploaded. Mac and Windows.
 An experiment of The Mad Lions Lab, in the Roar family (RoarMe, RoarTwin, RoarWriter…).
@@ -24,16 +31,16 @@ An experiment of The Mad Lions Lab, in the Roar family (RoarMe, RoarTwin, RoarWr
 - **Video to GIF or animated WebP**, with its own palette, and **a GIF into a video** (MP4, MOV, ProRes, WebM…; since 0.3.1 a GIF counts as a moving picture, and an odd size like 481×271 is made even for H.264).
 - **The sound only:** MP3, M4A (AAC), WAV 16-bit or 24-bit 48 kHz, AIFF 24-bit, ALAC, FLAC, OGG (Opus).
 - **A still:** one frame, JPG or PNG, at any moment.
-- Drop many files or whole folders; pictures go three at a time, videos one by one. A file Roarverter cannot read is
+- Drop many files or whole folders; pictures go three at a time, videos one by one. A file RoarMorph cannot read is
   named in a message, not dropped silently.
 - English, with Greek as a choice. Updates itself from the GitHub releases.
 
 ## Download
-From [themadlions.com/lab/roarverter](https://themadlions.com/lab/roarverter/), or the newest release:
-Mac with Apple Silicon `Roarverter-Mac-arm64.dmg` · Mac with Intel `Roarverter-Mac-x64.dmg` · Windows
-`Roarverter-Windows-Setup.exe`.
+From [themadlions.com/lab/roarmorph](https://themadlions.com/lab/roarmorph/), or the newest release:
+Mac with Apple Silicon `RoarMorph-Mac-arm64.dmg` · Mac with Intel `RoarMorph-Mac-x64.dmg` · Windows
+`RoarMorph-Windows-Setup.exe`.
 
-The app is not signed by Apple: the first time, right-click Roarverter in Applications and choose Open (or System
+The app is not signed by Apple: the first time, right-click RoarMorph in Applications and choose Open (or System
 Settings › Privacy & Security › Open Anyway). On Windows: More info › Run anyway.
 
 ## Working on it
