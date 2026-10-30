@@ -42,6 +42,14 @@ Mb/s, and about how big the videos in the list will come out (their length, the 
 close, as Resolve's "Restrict to" (convert.js bitrateMbps); Two passes in More options lands on it exactly; a Target
 size in More options still wins over both. A bitrate set in More options before 0.5.1 becomes this choice.
 
+## What a file is made of
+Since 0.5.1 (Alex, 30 Oct: "read its bitrate and compression from the metadata and write it"): every dropped file shows
+a line under its chips. A video: codec and profile (H.264 High, ProRes HQ), its bitrate, frame rate, bit depth and
+chroma, and its sound (AAC LC 256 kb/s, PCM 24-bit). Sound alone: codec, bitrate, kHz, channels. A picture: format, a
+JPEG's quality (read from its quantization table, convert.js jpegQuality), chroma, bit depth, bits a pixel and how much
+smaller it is than its raw pixels. ffmpeg's own description gives the video facts (convert.js streamFacts), sharp the
+picture's; both are tested in test/convert.test.js.
+
 The window opens at 1240 x 840 in the middle of the screen for everyone (smaller only on a smaller screen).
 
 ## Settings

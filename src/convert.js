@@ -59,6 +59,61 @@ function parseDuration(text) {
 }
 
 // What a file holds, from `ffmpeg -i` (it prints the metadata on stderr)
+// the bitrates, the codec's profile, bit depth and chroma, and the sound's own bitrate, from ffmpeg's description:
+// "Duration: …, bitrate: 470 kb/s", "Video: h264 (High) (avc1 / …), yuv420p(progressive), 640x360 […], 333 kb/s",
+// "Audio: pcm_s24le (in24 / …), 48000 Hz, stereo, s32 (24 bit), 2304 kb/s"
+function streamFacts(stderr) {
+  const total = /Duration:[^\n]*?bitrate: (\d+) kb\/s/.exec(stderr);
+  const vline = /Stream #[^\n]*?Video: ([^\n]*)/.exec(stderr)?.[1] || '';
+  const aline = /Stream #[^\n]*?Audio: ([^\n]*)/.exec(stderr)?.[1] || '';
+  const vprofile = /^\w+ \(([^)/]+)\)/.exec(vline)?.[1];
+  const pixfmt = /(?:^|, |\) )((?:yuvj?|gbrp?|gbrap|rgba?|bgra?|argb|abgr|nv|gray|ya|p01|xyz)[a-z0-9]*)/.exec(vline)?.[1];
+  const deep = pixfmt && /(\d{2})(?:le|be)$/.exec(pixfmt);
+  const chroma = !pixfmt ? undefined : /^yuvj?420|^nv12|^p01/.test(pixfmt) ? '4:2:0' : /^yuvj?422/.test(pixfmt) ? '4:2:2' : /^yuvj?444|^gbr|^rgb|^bgr|^argb|^abgr/.test(pixfmt) ? '4:4:4' : undefined;
+  const aprofile = /^\w+ \(([^)/]+)\)/.exec(aline)?.[1];
+  return {
+    bitrate: total ? +total[1] : 0,
+    vbitrate: +(/(\d+) kb\/s/.exec(vline)?.[1] || 0),
+    vprofile,
+    pixfmt,
+    bitDepth: !pixfmt ? 0 : deep ? +deep[1] : /48|64/.test(pixfmt) ? 16 : 8,
+    chroma,
+    abitrate: +(/(\d+) kb\/s/.exec(aline)?.[1] || 0),
+    abits: +(/\((\d+) bit\)/.exec(aline)?.[1] || 0),
+    aprofile,
+  };
+}
+
+// a JPEG's quality, 1 to 100, from its luminance table: libjpeg scales Annex K's table by the quality, so the table's
+// sum against Annex K's gives the scale back (order does not matter for a sum). 0 when it cannot tell.
+const ANNEX_K = [16, 11, 10, 16, 24, 40, 51, 61, 12, 12, 14, 19, 26, 58, 60, 55, 14, 13, 16, 24, 40, 57, 69, 56, 14, 17, 22, 29, 51, 87, 80, 62,
+  18, 22, 37, 56, 68, 109, 103, 77, 24, 35, 55, 64, 81, 104, 113, 92, 49, 64, 78, 87, 103, 121, 120, 101, 72, 92, 95, 98, 112, 100, 103, 99];
+function jpegQuality(file) {
+  let buf;
+  try { const fd = fs.openSync(file, 'r'); buf = Buffer.alloc(65536); const n = fs.readSync(fd, buf, 0, buf.length, 0); fs.closeSync(fd); buf = buf.subarray(0, n); } catch { return 0; }
+  if (buf[0] !== 0xff || buf[1] !== 0xd8) return 0;
+  for (let i = 2; i + 4 < buf.length;) {
+    if (buf[i] !== 0xff) return 0;
+    const m = buf[i + 1], len = buf.readUInt16BE(i + 2);
+    if (m === 0xdb) {
+      for (let j = i + 4; j < i + 2 + len && j + 65 <= buf.length;) {
+        const wide = buf[j] >> 4, table = buf[j] & 15;
+        j++;
+        const q = [];
+        for (let k = 0; k < 64; k++) { q.push(wide ? buf.readUInt16BE(j) : buf[j]); j += wide ? 2 : 1; }
+        if (table === 0) {
+          if (q.every((v) => v === 1)) return 100;
+          const scale = (q.reduce((a, b) => a + b, 0) * 100) / ANNEX_K.reduce((a, b) => a + b, 0);
+          return Math.max(1, Math.min(100, Math.round(scale <= 100 ? (200 - scale) / 2 : 5000 / scale)));
+        }
+      }
+    }
+    if (m === 0xda) return 0;
+    i += 2 + len;
+  }
+  return 0;
+}
+
 function probe(file) {
   return new Promise((resolve) => {
     execFile(FFMPEG, ['-hide_banner', '-i', file], { maxBuffer: 10 * 1024 * 1024 }, (_err, _out, stderr) => {
@@ -80,6 +135,8 @@ function probe(file) {
         width: video ? +video[2] : 0,
         height: video ? +video[3] : 0,
         fps: fps ? parseFloat(fps[1]) : 0,
+        // what the file is made of, shown on its row (Alex, 30 Oct: "read its bitrate and its compression and write it")
+        ...streamFacts(stderr),
       });
     });
   });
@@ -525,5 +582,5 @@ async function encodeVideo(id, base, v, f, o, info, duration, out, onProgress) {
 }
 
 module.exports = {
-  IMAGE_EXT, VIDEO_EXT, AUDIO_EXT, MAC_ONLY_EXT, setFfmpegPath, kindOf, probe, convertImage, convertMedia, cancel, cancelAll,
+  IMAGE_EXT, VIDEO_EXT, AUDIO_EXT, MAC_ONLY_EXT, setFfmpegPath, kindOf, probe, streamFacts, jpegQuality, convertImage, convertMedia, cancel, cancelAll,
 };
