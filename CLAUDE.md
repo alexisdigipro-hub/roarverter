@@ -20,8 +20,9 @@ text goes through `t()` or a data-i18n attribute and gets its Greek.
 - ffmpeg is a static binary per platform in `vendor/ffmpeg/<platform>-<arch>/` (scripts/fetch-ffmpeg.js, run by
   `npm install`); packaged as `resources/bin/ffmpeg`. The Mac build makes arm64 and x64 from one machine, so
   `dist:mac` fetches both ffmpegs and both sharp binaries (scripts/sharp-mac.js).
-- Look: RoarMe's dark glass, as RoarTwin (graphite, round glass buttons, pill fields, soft tiles, the chosen option
-  as glass with the sliding lens), accent #ff453a.
+- Look since 0.4.1 (Alex, 30 Oct: "RoarWriter, RoarList, RoarMorph, RoarKit exactly alike, as RoarMail"): src/theme.css,
+  loaded after styles.css, is RoarMail's Simba (floating graphite glass columns, red #d40000 that glows, the chosen thing
+  lit from inside, 12px corners, Jost wordmark from src/fonts). Keep it in step with RoarMail and RoarKit's app/theme.css.
 - Releases: bump `version` in package.json, tag `vX.Y.Z`, push the tag (.github/workflows/desktop.yml); the release's
   files are the download links (themadlions.com/lab/roarmorph/) and what src/updater.js looks at.
 - Work on a branch, open a PR, wait for the green check (.github/workflows/check.yml), merge it yourself.
