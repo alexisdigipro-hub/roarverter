@@ -6,6 +6,11 @@ const conv = require('./convert');
 const updater = require('./updater');
 const { IMAGE_EXT, VIDEO_EXT, AUDIO_EXT, MAC_ONLY_EXT, kindOf, probe } = conv;
 
+/* Roarverter is called RoarMorph since 30 Oct (Alex): its settings and everything it keeps stay in the old folder,
+   whatever the app is called, so nothing is lost when the app itself takes the new name. */
+app.setPath('userData', path.join(app.getPath('appData'), 'Roarverter'));
+app.setName('RoarMorph');
+
 if (app.isPackaged) {
   conv.setFfmpegPath(path.join(process.resourcesPath, 'bin', process.platform === 'win32' ? 'ffmpeg.exe' : 'ffmpeg'));
 }
@@ -19,7 +24,7 @@ function createWindow() {
     : { titleBarStyle: 'hidden', titleBarOverlay: { color: '#16181d', symbolColor: '#eef0f3', height: 58 } };
   win = new BrowserWindow({
     width: 1240, height: 840, minWidth: 900, minHeight: 600, show: false, backgroundColor: '#16181d', autoHideMenuBar: true, ...frame,
-    title: 'Roarverter',
+    title: 'RoarMorph',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -33,20 +38,20 @@ function createWindow() {
 if (!app.requestSingleInstanceLock()) app.quit();
 app.on('second-instance', () => { if (win) { if (win.isMinimized()) win.restore(); win.focus(); } });
 
-/* As in RoarTwin: Roarverter can update itself only where it may replace itself, in Applications, not opened
+/* As in RoarTwin: RoarMorph can update itself only where it may replace itself, in Applications, not opened
    straight from the .dmg or from Downloads. Started from anywhere else, it offers to move itself there once per start. */
 function offerApplications() {
   if (process.platform !== 'darwin' || !app.isPackaged || app.isInApplicationsFolder()) return false;
   const r = dialog.showMessageBoxSync({
     type: 'question', buttons: ['Move to Applications', 'Not now'], defaultId: 0, cancelId: 1,
-    message: 'Move Roarverter to Applications?',
-    detail: 'From there Roarverter updates itself, with nothing to download or install by hand. It opens again by itself.',
+    message: 'Move RoarMorph to Applications?',
+    detail: 'From there RoarMorph updates itself, with nothing to download or install by hand. It opens again by itself.',
   });
   if (r !== 0) return false;
   try {
     return app.moveToApplicationsFolder({ conflictHandler: () => true });
   } catch (e) {
-    dialog.showErrorBox('Roarverter could not move itself', `${e?.message || e}\n\nDrag Roarverter into the Applications folder yourself and open it from there.`);
+    dialog.showErrorBox('RoarMorph could not move itself', `${e?.message || e}\n\nDrag RoarMorph into the Applications folder yourself and open it from there.`);
     return false;
   }
 }
@@ -90,7 +95,7 @@ ipcMain.handle('pick-folder', async () => {
   return r.canceled ? null : r.filePaths[0];
 });
 
-// every file Roarverter can take, inside the folders too; what it cannot take is named, not dropped silently
+// every file RoarMorph can take, inside the folders too; what it cannot take is named, not dropped silently
 function walk(p, acc, skipped, top) {
   const st = fs.statSync(p);
   if (st.isDirectory()) {
