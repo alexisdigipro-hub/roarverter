@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, screen, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const sharp = require('sharp');
@@ -18,12 +18,18 @@ if (app.isPackaged) {
 let win;
 let quitting = false;
 
+function startSize() {
+  const a = screen.getPrimaryDisplay().workAreaSize;
+  return { width: Math.min(1240, a.width - 40), height: Math.min(840, a.height - 40) };
+}
+
 function createWindow() {
   const frame = process.platform === 'darwin'
     ? { titleBarStyle: 'hiddenInset', trafficLightPosition: { x: 16, y: 21 } }
     : { titleBarStyle: 'hidden', titleBarOverlay: { color: '#2b3038', symbolColor: '#eef0f3', height: 58 } };
   win = new BrowserWindow({
-    width: 1240, height: 840, minWidth: 900, minHeight: 600, show: false, backgroundColor: '#1b1e23', autoHideMenuBar: true, ...frame,
+    // the same window for everyone (Alex, 30 Oct): 1240 x 840 in the middle of the screen, smaller only on a smaller screen
+    ...startSize(), center: true, minWidth: 900, minHeight: 600, show: false, backgroundColor: '#1b1e23', autoHideMenuBar: true, ...frame,
     title: 'RoarMorph',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -120,10 +126,18 @@ ipcMain.handle('inspect', async (_e, paths) => {
     const size = fs.statSync(file).size;
     let meta = {};
     if (kind === 'image') {
-      try { const m = await sharp(file).metadata(); meta = { width: m.width, height: m.height }; } catch {}
+      // the picture's own make-up, shown on its row: format, bit depth, chroma, a JPEG's quality (Alex, 30 Oct)
+      try {
+        const m = await sharp(file).metadata();
+        meta = { width: m.width, height: m.height, format: m.format, channels: m.channels, alpha: !!m.hasAlpha, progressive: !!m.isProgressive,
+          bitDepth: m.depth === 'ushort' ? 16 : m.depth === 'float' ? 32 : m.depth === 'uchar' ? 8 : 0, chroma: m.chromaSubsampling, heifCodec: m.compression,
+          jpegQ: m.format === 'jpeg' ? conv.jpegQuality(file) : 0 };
+      } catch {}
     } else {
       const i = await probe(file);
-      meta = { width: i.width, height: i.height, duration: i.duration, hasAudio: i.hasAudio, vcodec: i.vcodec };
+      meta = { width: i.width, height: i.height, duration: i.duration, hasAudio: i.hasAudio, vcodec: i.vcodec, fps: i.fps,
+        bitrate: i.bitrate, vbitrate: i.vbitrate, vprofile: i.vprofile, bitDepth: i.bitDepth, chroma: i.chroma,
+        acodec: i.acodec, aprofile: i.aprofile, abitrate: i.abitrate, abits: i.abits, sampleRate: i.sampleRate, channelsName: i.channels };
     }
     return { file, name: path.basename(file), kind, size, ...meta };
   }));

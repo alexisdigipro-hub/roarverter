@@ -35,6 +35,27 @@ An experiment of The Mad Lions Lab, in the Roar family (RoarMe, RoarTwin, RoarWr
   named in a message, not dropped silently.
 - English, with Greek as a choice. Updates itself from the GitHub releases.
 
+## The bitrate
+Since 0.5.1 (Alex, 30 Oct: "set the bitrate of the compression for videos"): under Compression, By quality or By bitrate.
+By bitrate: a slider from 0.5 to 150 Mb/s (even through the small values), quick choices 2 to 100 Mb/s, the number in
+Mb/s, and about how big the videos in the list will come out (their length, the sound included). It is an average kept
+close, as Resolve's "Restrict to" (convert.js bitrateMbps); Two passes in More options lands on it exactly; a Target
+size in More options still wins over both. A bitrate set in More options before 0.5.1 becomes this choice.
+
+## What a file is made of
+Since 0.5.1 (Alex, 30 Oct: "read its bitrate and compression from the metadata and write it"): every dropped file shows
+a line under its chips. A video: codec and profile (H.264 High, ProRes HQ), its bitrate, frame rate, bit depth and
+chroma, and its sound (AAC LC 256 kb/s, PCM 24-bit). Sound alone: codec, bitrate, kHz, channels. A picture: format, a
+JPEG's quality (read from its quantization table, convert.js jpegQuality), chroma, bit depth, bits a pixel and how much
+smaller it is than its raw pixels. ffmpeg's own description gives the video facts (convert.js streamFacts), sharp the
+picture's; both are tested in test/convert.test.js.
+
+Again (0.5.1, Alex, 30 Oct: "redo a file already in the list"): a finished row has a round Again button, and the list
+head Again for all: the row goes back to ready with the choices as they are now, and the next Convert makes a new file
+beside the first (never over it). Dropping a finished file in again does the same.
+
+The window opens at 1240 x 840 in the middle of the screen for everyone (smaller only on a smaller screen).
+
 ## Settings
 Since 0.5.0 (Alex, 30 Oct: "RoarMorph needs settings and auto update"): the gear at the top right, or Cmd/Ctrl+,.
 Language (English, Ελληνικά); Updates: the version, Check now, Restart to update when one is ready, and Update by

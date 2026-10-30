@@ -1,6 +1,6 @@
 {
   "name": "roarverter",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "RoarMorph (Roarverter until Oct 2026): converts and compresses pictures, videos and sound, on your own computer. The Mad Lions Lab.",
   "main": "src/main.js",
   "scripts": {

@@ -139,6 +139,22 @@ const jobs = [
       else { failed++; console.log(`✗ ${label}: ${e.message}`); }
     }
   }
+  // what a dropped file is made of (Alex, 30 Oct): bitrates, profile, bit depth, chroma, a JPEG's quality
+  {
+    const bad = [];
+    const v = await c.probe(path.join(T, 'test video.mov'));
+    if (v.vcodec !== 'h264' || !v.vprofile) bad.push(`codec ${v.vcodec} ${v.vprofile}`);
+    if (!(v.bitrate > 0 && v.vbitrate > 0 && v.abitrate > 0)) bad.push(`bitrates ${v.bitrate}/${v.vbitrate}/${v.abitrate}`);
+    if (v.bitDepth !== 8 || v.chroma !== '4:2:0') bad.push(`${v.bitDepth}-bit ${v.chroma}`);
+    const h = await c.probe(path.join(T, 'hlg.mov'));
+    if (h.bitDepth !== 10) bad.push(`HLG ${h.bitDepth}-bit`);
+    const jpg = path.join(T, 'q80.jpg');
+    await require('sharp')(path.join(T, 'photo.png')).jpeg({ quality: 80 }).toFile(jpg);
+    const q = c.jpegQuality(jpg);
+    if (q < 77 || q > 83) bad.push(`JPEG quality ${q}, not about 80`);
+    if (c.jpegQuality(path.join(T, 'photo.png')) !== 0) bad.push('a PNG has a JPEG quality');
+    if (bad.length) { failed++; console.log(`✗ file facts: ${bad.join(', ')}`); } else console.log(`✓ file facts (H.264 ${v.vprofile} ${v.vbitrate} kb/s, JPEG q ${q})`);
+  }
   fs.rmSync(T, { recursive: true, force: true });
   console.log(failed ? `\n${failed} failed` : '\nall good');
   process.exit(failed ? 1 : 0);
