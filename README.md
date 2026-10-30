@@ -35,6 +35,15 @@ An experiment of The Mad Lions Lab, in the Roar family (RoarMe, RoarTwin, RoarWr
   named in a message, not dropped silently.
 - English, with Greek as a choice. Updates itself from the GitHub releases.
 
+## The bitrate
+Since 0.5.1 (Alex, 30 Oct: "set the bitrate of the compression for videos"): under Compression, By quality or By bitrate.
+By bitrate: a slider from 0.5 to 150 Mb/s (even through the small values), quick choices 2 to 100 Mb/s, the number in
+Mb/s, and about how big the videos in the list will come out (their length, the sound included). It is an average kept
+close, as Resolve's "Restrict to" (convert.js bitrateMbps); Two passes in More options lands on it exactly; a Target
+size in More options still wins over both. A bitrate set in More options before 0.5.1 becomes this choice.
+
+The window opens at 1240 x 840 in the middle of the screen for everyone (smaller only on a smaller screen).
+
 ## Settings
 Since 0.5.0 (Alex, 30 Oct: "RoarMorph needs settings and auto update"): the gear at the top right, or Cmd/Ctrl+,.
 Language (English, Ελληνικά); Updates: the version, Check now, Restart to update when one is ready, and Update by

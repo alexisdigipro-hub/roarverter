@@ -102,10 +102,27 @@
           <div data-show="video anim frame">
             <div class="label" data-i18n>Compression</div>
             <div class="seg wide presets" data-presets></div>
-            <label class="field">
+            <!-- by quality or by bitrate (Alex, 30 Oct: "set the bitrate of the compression for videos") -->
+            <div class="seg wide" id="vidRateMode" data-show="video">
+              <button data-v="quality" data-i18n>By quality</button>
+              <button data-v="bitrate" data-i18n>By bitrate</button>
+            </div>
+            <label class="field" id="qualityBox">
               <span><span data-i18n>Quality</span> <b id="vidQualityVal"></b></span>
               <input type="range" id="vidQuality" min="0" max="100" step="1" />
             </label>
+            <div class="rate" id="rateBox" data-show="video">
+              <label class="field">
+                <span><span data-i18n>Bitrate</span> <b id="vidBitrateVal"></b></span>
+                <input type="range" id="vidBitrateRange" min="0" max="100" step="0.5" />
+              </label>
+              <div class="chips" id="rateChips"></div>
+              <div class="inline rate-in">
+                <input type="number" id="vidBitrate" min="0.1" max="400" step="0.5" />
+                <span class="unit">Mb/s</span>
+                <small class="hint" id="rateEst"></small>
+              </div>
+            </div>
           </div>
 
           <div data-show="video pro fixed frame">
@@ -194,15 +211,8 @@
                     <span class="unit">MB</span>
                   </div>
                 </label>
-                <label class="field">
-                  <span data-i18n>Or a bitrate</span>
-                  <div class="inline">
-                    <input type="number" id="bitrateMbps" min="0.1" step="0.5" placeholder="e.g. 8" data-i18n-ph />
-                    <span class="unit">Mb/s</span>
-                  </div>
-                </label>
               </div>
-              <small class="hint" data-show="video" data-i18n>When either is set, the quality is left aside: a size for email or Discord, a bitrate as Resolve’s “Restrict to”.</small>
+              <small class="hint" data-show="video" data-i18n>When a size is set, the quality and the bitrate are left aside: 25 MB for email or Discord, say.</small>
               <label class="check" data-show="video" id="twoPassRow"><input type="checkbox" id="twoPass" /><span><span data-i18n>Two passes</span><small data-i18n>Lands on the size or bitrate, takes twice as long.</small></span></label>
               <div data-show="video">
                 <div class="label" data-i18n>Encoding speed</div>

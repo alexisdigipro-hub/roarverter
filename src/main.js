@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, screen, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const sharp = require('sharp');
@@ -18,12 +18,18 @@ if (app.isPackaged) {
 let win;
 let quitting = false;
 
+function startSize() {
+  const a = screen.getPrimaryDisplay().workAreaSize;
+  return { width: Math.min(1240, a.width - 40), height: Math.min(840, a.height - 40) };
+}
+
 function createWindow() {
   const frame = process.platform === 'darwin'
     ? { titleBarStyle: 'hiddenInset', trafficLightPosition: { x: 16, y: 21 } }
     : { titleBarStyle: 'hidden', titleBarOverlay: { color: '#2b3038', symbolColor: '#eef0f3', height: 58 } };
   win = new BrowserWindow({
-    width: 1240, height: 840, minWidth: 900, minHeight: 600, show: false, backgroundColor: '#1b1e23', autoHideMenuBar: true, ...frame,
+    // the same window for everyone (Alex, 30 Oct): 1240 x 840 in the middle of the screen, smaller only on a smaller screen
+    ...startSize(), center: true, minWidth: 900, minHeight: 600, show: false, backgroundColor: '#1b1e23', autoHideMenuBar: true, ...frame,
     title: 'RoarMorph',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
