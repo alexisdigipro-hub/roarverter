@@ -50,6 +50,10 @@ JPEG's quality (read from its quantization table, convert.js jpegQuality), chrom
 smaller it is than its raw pixels. ffmpeg's own description gives the video facts (convert.js streamFacts), sharp the
 picture's; both are tested in test/convert.test.js.
 
+Again (0.5.1, Alex, 30 Oct: "redo a file already in the list"): a finished row has a round Again button, and the list
+head Again for all: the row goes back to ready with the choices as they are now, and the next Convert makes a new file
+beside the first (never over it). Dropping a finished file in again does the same.
+
 The window opens at 1240 x 840 in the middle of the screen for everyone (smaller only on a smaller screen).
 
 ## Settings
