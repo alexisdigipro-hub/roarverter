@@ -35,6 +35,11 @@ An experiment of The Mad Lions Lab, in the Roar family (RoarMe, RoarTwin, RoarWr
   named in a message, not dropped silently.
 - English, with Greek as a choice. Updates itself from the GitHub releases.
 
+## Look
+Since 0.4.1 (30 Oct) RoarMorph wears RoarMail's look, as RoarKit, RoarWriter and RoarList do: `src/theme.css` over
+`src/styles.css` (graphite glass columns floating on a graphite backdrop, one red accent that glows, the chosen thing lit
+from inside, 12px corners, the wordmark in Jost from `src/fonts`, OFL).
+
 ## Download
 From [themadlions.com/lab/roarmorph](https://themadlions.com/lab/roarmorph/), or the newest release:
 Mac with Apple Silicon `RoarMorph-Mac-arm64.dmg` · Mac with Intel `RoarMorph-Mac-x64.dmg` · Windows

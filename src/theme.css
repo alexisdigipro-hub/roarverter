@@ -1,0 +1,84 @@
+/* RoarMorph wears RoarMail's look (Alex, 30 Oct: "RoarWriter, RoarList, RoarMorph, RoarKit exactly alike in design and
+   UI, all of them as RoarMail"). RoarMail's Simba: graphite glass columns that float on a soft graphite backdrop with a
+   gap between them, one red accent that glows, the chosen thing lit from inside, 12px corners, the system font for
+   reading and Jost only for the wordmark. Loaded after styles.css: it changes how things look, never what they do.
+   Keep it in step with RoarMail's src/renderer/styles.css (the Simba block) and RoarKit's app/theme.css. */
+
+@font-face { font-family: Jost; font-weight: 300; font-display: swap; src: url(fonts/jost-300.woff2) format('woff2'); }
+@font-face { font-family: Jost; font-weight: 700; font-display: swap; src: url(fonts/jost-700.woff2) format('woff2'); }
+
+:root {
+  --bg: #1b1e23; --bg-2: #22262c; --text: #eef0f3; --muted: rgba(214,220,228,.58); --dim: rgba(214,220,228,.4);
+  --panel: rgba(44,49,57,.62); --side: rgba(58,64,74,.55); --float: rgba(40,45,53,.96);
+  --glass: rgba(255,255,255,.055); --glass-2: rgba(255,255,255,.1); --glass-3: rgba(255,255,255,.14);
+  --edge: rgba(255,255,255,.1); --edge-2: rgba(255,255,255,.16); --line: rgba(255,255,255,.08);
+  --acc: #d40000; --acc-2: #ff3b30; --ok: #4ade80;
+  --sel: color-mix(in srgb, var(--acc) 18%, transparent); --sel-edge: color-mix(in srgb, var(--acc) 60%, transparent);
+  --halo: 0 0 24px color-mix(in srgb, var(--acc) 24%, transparent);
+  --blur: blur(26px) saturate(140%);
+  --lit: inset 0 1px 0 rgba(255,255,255,.08), 0 30px 70px rgba(0,0,0,.45);
+  --r: 12px; --R: 19px; --gap: 14px;
+  --brand: Jost, Futura, 'Century Gothic', 'Avenir Next', system-ui, sans-serif;
+}
+
+/* ---------- the backdrop; the two columns float as glass cards ---------- */
+html, body { background: radial-gradient(1200px 700px at 50% -12%, #4b525d 0%, transparent 62%), linear-gradient(180deg, #2b3038 0%, #1c1f24 55%, #15171b 100%); }
+body::before { inset: 0; height: auto;
+  background: radial-gradient(520px 420px at 82% 88%, color-mix(in srgb, var(--acc) 14%, transparent) 0%, transparent 70%), radial-gradient(420px 360px at 12% 10%, rgba(255,255,255,.05) 0%, transparent 70%); }
+.wm { font-size: 17px; letter-spacing: .14em; }
+.wm span { font-family: var(--brand); font-weight: 300; }
+.wm b { font-family: var(--brand); font-weight: 700; color: var(--acc-2); text-shadow: 0 0 18px color-mix(in srgb, var(--acc) 60%, transparent); }
+.ver { border-radius: 999px; background: var(--glass); border-color: var(--edge); }
+main { gap: var(--gap); padding: 0 var(--gap) var(--gap); }
+.left { padding: 14px; border: 1px solid var(--edge); border-radius: var(--R); background: var(--panel); box-shadow: var(--lit);
+  -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur); }
+.right { border-radius: var(--R); border-color: var(--edge); background: var(--side); box-shadow: var(--lit); -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur); }
+.go { background: transparent; border-top-color: var(--edge); }
+.over-all { border-radius: var(--R); border-color: var(--sel-edge); box-shadow: var(--halo); }
+
+/* ---------- controls: graphite glass, 12px corners, the main one red and glowing ---------- */
+.btn { border: 0; border-radius: var(--r); background: var(--glass); box-shadow: inset 0 0 0 1px var(--edge); font-weight: 600; }
+.btn:hover { background: var(--glass-2); }
+.btn.main { background: var(--acc); color: #fff; box-shadow: 0 0 0 1px color-mix(in srgb, var(--acc) 60%, transparent), 0 6px 24px color-mix(in srgb, var(--acc) 45%, transparent); }
+.btn.main:hover { background: var(--acc); filter: brightness(1.08); }
+.btn.main:disabled { background: var(--glass); color: var(--dim); box-shadow: inset 0 0 0 1px var(--edge); }
+.btn.big { border-radius: var(--r); height: 48px; }
+.btn.stop { border-radius: var(--r); background: var(--sel); box-shadow: inset 0 0 0 1px var(--sel-edge); color: #ffb3ad; }
+.ib { border: 0; border-radius: var(--r); background: transparent; }
+.ib:hover { background: var(--glass-2); }
+/* a choice: the dark well, the chosen one a pale glowing pill */
+.seg { border: 0; background: rgba(0,0,0,.25); box-shadow: inset 0 0 0 1px var(--edge); }
+.seg button.on { color: #2a1410; }
+.seg .lens { background: linear-gradient(180deg, color-mix(in srgb, var(--acc) 38%, #fff), color-mix(in srgb, var(--acc) 70%, #fff)); box-shadow: 0 0 20px color-mix(in srgb, var(--acc) 50%, transparent); }
+.seg button.on small { color: rgba(42,20,16,.6); }
+.chips button { border-radius: var(--r); background: var(--glass); border-color: var(--edge); }
+.chips button.on { background: var(--sel); border-color: var(--sel-edge); box-shadow: var(--halo); color: var(--text); }
+.fmt { border-radius: var(--r); background: var(--glass); border-color: var(--edge); }
+.fmt.on { background: var(--sel); border-color: var(--sel-edge); box-shadow: inset 0 0 0 1px var(--sel-edge), var(--halo); }
+.check input { border: 0; box-shadow: inset 0 0 0 1px var(--edge); }
+.check input:checked { background: var(--acc); box-shadow: 0 0 12px color-mix(in srgb, var(--acc) 50%, transparent); }
+input[type=range]::-webkit-slider-runnable-track { background: linear-gradient(90deg, var(--acc-2) var(--p, 50%), rgba(255,255,255,.1) var(--p, 50%)); box-shadow: 0 0 10px color-mix(in srgb, var(--acc) 30%, transparent); }
+.more { border-radius: var(--r); border-color: var(--edge); background: var(--glass); }
+.label { font-size: 10.5px; font-weight: 600; letter-spacing: .16em; color: var(--muted); }
+
+/* ---------- the files: RoarMail's rows ---------- */
+.item { border-radius: var(--r); background: var(--glass); border-color: var(--edge); box-shadow: none; }
+.item:hover { background: var(--glass-2); }
+.chip { border-radius: var(--r); }
+.chip i { box-shadow: 0 0 8px var(--c, var(--acc)); }
+.prog .p { stroke: var(--acc-2); filter: drop-shadow(0 0 5px color-mix(in srgb, var(--acc) 70%, transparent)); }
+.drop { border-radius: var(--R); }
+.drop::before { border-radius: calc(var(--R) - 2px); background: radial-gradient(60% 80% at 50% 0%, rgba(255,255,255,.05), transparent 70%), rgba(20,23,28,.5); }
+.drop .ring { border-radius: var(--R); }
+.dz-i, .kind { border-radius: var(--r); }
+.drop-hint { border-radius: var(--r); }
+.fmts span { border-radius: var(--r); }
+.hero h1 b { background: none; color: var(--text); -webkit-background-clip: border-box; background-clip: border-box; }
+.toast { border-radius: 999px; background: var(--float); border-color: var(--edge-2); -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur); }
+/* the red as text and marks is RoarMail's brighter one; the deep red is for the button and the glow */
+.kind.k2, .over-all svg, .field b, .more summary em { color: var(--acc-2); }
+.kind { color: var(--muted); }
+.kind.k1, .kind.k3 { color: var(--muted); }
+.chip i { background: var(--c, var(--acc-2)); }
+/* the drop's inside stays solid, so only the light running round its edge shows */
+.drop::before { background: radial-gradient(60% 80% at 50% 0%, rgba(255,255,255,.05), transparent 70%), #262a31; }
