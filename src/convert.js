@@ -336,6 +336,12 @@ const VIDEO_FORMATS = {
   'mxf-dnxhr': { ext: 'mxf', v: 'dnxhd', a: 'pcm_s24le', ar: 48000, pro: 'dnxhr' },
   'mxf-mpeg2': { ext: 'mxf', v: 'mpeg2video', a: 'pcm_s24le', ar: 48000, xdcam: true },
   'mkv-ffv1': { ext: 'mkv', v: 'ffv1', a: 'flac', lossless: true },
+  // for Resolume (Alex, 31 Oct): DXV (normal quality, no alpha: what ffmpeg can write) and HAP, HAP Q with or without
+  // alpha, which Resolume plays from the graphics card as smoothly; sizes a multiple of 4, sound as PCM
+  'mov-dxv': { ext: 'mov', v: 'dxv', a: 'pcm_s16le', resolume: 'dxv' },
+  'mov-hapq': { ext: 'mov', v: 'hap', a: 'pcm_s16le', resolume: 'hap_q' },
+  'mov-hapa': { ext: 'mov', v: 'hap', a: 'pcm_s16le', resolume: 'hap_alpha' },
+  'mov-hapqa': { ext: 'mov', v: 'hap', a: 'pcm_s16le', resolume: 'hap_q_alpha' },
   'mpg-mpeg2': { ext: 'mpg', v: 'mpeg2video', a: 'mp2' },
   'mkv-h264': { ext: 'mkv', v: 'libx264', a: 'aac' },
   'mkv-h265': { ext: 'mkv', v: 'libx265', a: 'aac' },
@@ -528,7 +534,10 @@ async function convertMedia(id, input, o, onProgress) {
     return out;
   }
 
-  args.push('-filter_complex', pictureGraph(o, info, o.fps ? [`fps=${o.fps}`] : []), '-map', '[v]');
+  // Resolume's codecs: a frame a multiple of 4 on each side, in RGBA (alpha kept where there is one)
+  const live = f.resolume ? ['scale=trunc(iw/4)*4:trunc(ih/4)*4:flags=lanczos', 'format=rgba'] : []
+  if (f.resolume && !(await hasEncoder(f.v))) throw new Error(f.v === 'dxv' ? 'This copy of RoarMorph cannot write DXV. Update RoarMorph and try again.' : 'This copy of RoarMorph cannot write HAP. Update RoarMorph and try again.');
+  args.push('-filter_complex', pictureGraph(o, info, [...(o.fps ? [`fps=${o.fps}`] : []), ...live]), '-map', '[v]');
   const sound = !o.removeAudio && info.hasAudio;
   if (sound) args.push('-map', '0:a:0');
 
@@ -556,7 +565,10 @@ async function encodeVideo(id, base, v, f, o, info, duration, out, onProgress) {
   const audioKbps = o.removeAudio || !info.hasAudio ? 0 : o.audioBitrate || 128;
   let byRate = false; // a bitrate was set: two passes can make it land
 
-  if (f.pro === 'prores') {
+  if (f.resolume) {
+    // HAP: its kind, in four chunks so Resolume decodes it on several cores; DXV: no settings
+    if (v === 'hap') args.push('-format', f.resolume, '-chunks', '4');
+  } else if (f.pro === 'prores') {
     const [profile, pix] = PRORES[o.profile] || PRORES[proresFromQuality(o.quality)];
     args.push('-profile:v', profile, '-pix_fmt', pix, '-vendor', 'apl0');
   } else if (f.pro === 'dnxhr') {
@@ -588,7 +600,7 @@ async function encodeVideo(id, base, v, f, o, info, duration, out, onProgress) {
     if (['libvpx-vp9', 'libaom-av1'].includes(v)) args.push('-b:v', '0');
   }
   if (['libvpx-vp9', 'libaom-av1'].includes(v)) args.push('-row-mt', '1');
-  if (o.keyframes && !f.pro && !f.lossless && !f.xdcam) args.push('-g', String(Math.round(o.keyframes)));
+  if (o.keyframes && !f.pro && !f.lossless && !f.xdcam && !f.resolume) args.push('-g', String(Math.round(o.keyframes)));
 
   if (['libx264', 'libx265', 'h264_videotoolbox', 'hevc_videotoolbox', 'mpeg2video', 'libsvtav1', 'libaom-av1'].includes(v) && !f.xdcam) args.push('-pix_fmt', 'yuv420p');
   if (['libx265', 'hevc_videotoolbox'].includes(v) && f.ext !== 'mkv') args.push('-tag:v', 'hvc1'); // so QuickTime and iPhones play it

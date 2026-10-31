@@ -35,6 +35,23 @@ An experiment of The Mad Lions Lab, in the Roar family (RoarMe, RoarTwin, RoarWr
   named in a message, not dropped silently.
 - English, with Greek as a choice. Updates itself from the GitHub releases.
 
+## For Resolume
+Since 0.6.0 (Alex, 31 Oct): a group of its own in Video & Sound, four kinds, each a .mov that Resolume plays from the
+graphics card:
+- **DXV**: Resolume's own codec, normal quality, no alpha (ffmpeg writes only this one of the four DXV kinds; the
+  other three only Resolume's Alley or its Adobe plug-in write).
+- **HAP Q**: high quality, sharper than DXV and HAP (the "high quality" choice).
+- **HAP Alpha** and **HAP Q Alpha**: with transparency, for loops, logos and graphics over other layers.
+
+The frame becomes a multiple of 4 on each side (these codecs need it), the picture goes in as RGBA (alpha kept), sound
+as PCM, HAP in four chunks so Resolume decodes it on several cores. Every picture option (LUT, reframe, size, frame
+rate) applies as for any video.
+
+For it the ffmpeg inside changed (scripts/fetch-ffmpeg.js): Martin Riedl's static 9.x builds on the Mac (Apple
+Silicon and Intel) and Linux, gyan.dev's full 7.1.1 build on Windows, both checked on real machines to write DXV and
+HAP (Alex allowed these sources). The fetch fails if the ffmpeg of the machine it runs on cannot write DXV, HAP,
+H.264 and H.265.
+
 ## The bitrate
 Since 0.5.1 (Alex, 30 Oct: "set the bitrate of the compression for videos"): under Compression, By quality or By bitrate.
 By bitrate: a slider from 0.5 to 150 Mb/s (even through the small values), quick choices 2 to 100 Mb/s, the number in
