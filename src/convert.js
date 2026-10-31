@@ -336,12 +336,11 @@ const VIDEO_FORMATS = {
   'mxf-dnxhr': { ext: 'mxf', v: 'dnxhd', a: 'pcm_s24le', ar: 48000, pro: 'dnxhr' },
   'mxf-mpeg2': { ext: 'mxf', v: 'mpeg2video', a: 'pcm_s24le', ar: 48000, xdcam: true },
   'mkv-ffv1': { ext: 'mkv', v: 'ffv1', a: 'flac', lossless: true },
-  // for Resolume (Alex, 31 Oct): DXV (normal quality, no alpha: what ffmpeg can write) and HAP, HAP Q with or without
-  // alpha, which Resolume plays from the graphics card as smoothly; sizes a multiple of 4, sound as PCM
+  // for Resolume (Alex, 31 Oct): DXV (normal quality, no alpha: what ffmpeg can write), HAP Q and HAP Alpha, which
+  // Resolume plays from the graphics card as smoothly (ffmpeg has no HAP Q Alpha); sizes a multiple of 4, sound as PCM
   'mov-dxv': { ext: 'mov', v: 'dxv', a: 'pcm_s16le', resolume: 'dxv' },
   'mov-hapq': { ext: 'mov', v: 'hap', a: 'pcm_s16le', resolume: 'hap_q' },
   'mov-hapa': { ext: 'mov', v: 'hap', a: 'pcm_s16le', resolume: 'hap_alpha' },
-  'mov-hapqa': { ext: 'mov', v: 'hap', a: 'pcm_s16le', resolume: 'hap_q_alpha' },
   'mpg-mpeg2': { ext: 'mpg', v: 'mpeg2video', a: 'mp2' },
   'mkv-h264': { ext: 'mkv', v: 'libx264', a: 'aac' },
   'mkv-h265': { ext: 'mkv', v: 'libx265', a: 'aac' },
@@ -602,7 +601,8 @@ async function encodeVideo(id, base, v, f, o, info, duration, out, onProgress) {
   if (['libvpx-vp9', 'libaom-av1'].includes(v)) args.push('-row-mt', '1');
   if (o.keyframes && !f.pro && !f.lossless && !f.xdcam && !f.resolume) args.push('-g', String(Math.round(o.keyframes)));
 
-  if (['libx264', 'libx265', 'h264_videotoolbox', 'hevc_videotoolbox', 'mpeg2video', 'libsvtav1', 'libaom-av1'].includes(v) && !f.xdcam) args.push('-pix_fmt', 'yuv420p');
+  // VP9 too since ffmpeg 9: a GIF's transparency made it write nothing at all
+  if (['libx264', 'libx265', 'h264_videotoolbox', 'hevc_videotoolbox', 'mpeg2video', 'libsvtav1', 'libaom-av1', 'libvpx-vp9'].includes(v) && !f.xdcam) args.push('-pix_fmt', 'yuv420p');
   if (['libx265', 'hevc_videotoolbox'].includes(v) && f.ext !== 'mkv') args.push('-tag:v', 'hvc1'); // so QuickTime and iPhones play it
   if (o.hdrToSdr !== false && HDR_TRANSFERS.includes(info.transfer)) args.push('-color_primaries', 'bt709', '-color_trc', 'bt709', '-colorspace', 'bt709');
 

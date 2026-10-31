@@ -131,11 +131,10 @@ const jobs = [
   ['video', 'moving.gif', { format: 'webm-vp9', quality: 60, speed: 'fast', resolution: 240 }, { h: 240 }],
   ['video', 'moving.gif', { format: 'gif', quality: 70, gifWidth: 320, fps: 12 }, { w: 320 }],
   ['video', 'moving.gif', { format: 'frame-png', trimStart: 1 }, { w: 480 }],
-  // for Resolume (31 Oct): DXV and the three HAPs, the frame a multiple of 4 on each side (the GIF's 270 becomes 268)
+  // for Resolume (31 Oct): DXV, HAP Q and HAP Alpha, the frame a multiple of 4 on each side (the GIF's 270 becomes 268)
   ['video', 'test video.mov', { format: 'mov-dxv', resolution: 720 }, { h: 720, codec: 'dxv', d: 6 }],
   ['video', 'test video.mov', { format: 'mov-hapq', resolution: 720 }, { h: 720, codec: 'hap', d: 6 }],
   ['video', 'moving.gif', { format: 'mov-hapa' }, { w: 480, h: 268, codec: 'hap' }],
-  ['video', 'moving.gif', { format: 'mov-hapqa' }, { w: 480, h: 268, codec: 'hap' }],
   ['video', 'moving.gif', { format: 'mov-dxv' }, { w: 480, h: 268, codec: 'dxv' }],
   ['video', 'test video.mov', { format: 'nope' }, { error: 'Unknown format' }],
 ];

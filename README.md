@@ -36,12 +36,13 @@ An experiment of The Mad Lions Lab, in the Roar family (RoarMe, RoarTwin, RoarWr
 - English, with Greek as a choice. Updates itself from the GitHub releases.
 
 ## For Resolume
-Since 0.6.0 (Alex, 31 Oct): a group of its own in Video & Sound, four kinds, each a .mov that Resolume plays from the
+Since 0.6.0 (Alex, 31 Oct): a group of its own in Video & Sound, three kinds, each a .mov that Resolume plays from the
 graphics card:
 - **DXV**: Resolume's own codec, normal quality, no alpha (ffmpeg writes only this one of the four DXV kinds; the
   other three only Resolume's Alley or its Adobe plug-in write).
 - **HAP Q**: high quality, sharper than DXV and HAP (the "high quality" choice).
-- **HAP Alpha** and **HAP Q Alpha**: with transparency, for loops, logos and graphics over other layers.
+- **HAP Alpha**: with transparency, for loops, logos and graphics over other layers. (No HAP Q Alpha: ffmpeg's HAP
+  encoder writes HAP, HAP Alpha and HAP Q only.)
 
 The frame becomes a multiple of 4 on each side (these codecs need it), the picture goes in as RGBA (alpha kept), sound
 as PCM, HAP in four chunks so Resolume decodes it on several cores. Every picture option (LUT, reframe, size, frame

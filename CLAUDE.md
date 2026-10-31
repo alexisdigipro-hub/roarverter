@@ -36,5 +36,5 @@ text goes through `t()` or a data-i18n attribute and gets its Greek.
 - PSD (Alex, 30 Oct, 0.5.2): src/psd.js reads Photoshop files (header, layers, flattened picture; RGB/gray/CMYK, 8/16/32-bit,
   raw/RLE/ZIP) with positioned reads, layer by layer; convert.js psdToPng / splitPsdLayers; the question when a PSD with
   layers is dropped is renderer.js askLayers. Bit depth shows as "N-bit colour" on every row.
-- For Resolume (Alex, 31 Oct, 0.6.0): VIDEO_FORMATS mov-dxv / mov-hapq / mov-hapa / mov-hapqa (f.resolume), the frame a multiple of 4 and
+- For Resolume (Alex, 31 Oct, 0.6.0): VIDEO_FORMATS mov-dxv / mov-hapq / mov-hapa (f.resolume; ffmpeg has no HAP Q Alpha), the frame a multiple of 4 and
   RGBA through pictureGraph's extra filters, HAP with -format and -chunks 4; ffmpeg writes DXV only in normal quality without alpha.
