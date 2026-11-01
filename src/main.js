@@ -15,6 +15,15 @@ app.setName('RoarMorph');
 if (app.isPackaged) {
   conv.setFfmpegPath(path.join(process.resourcesPath, 'bin', process.platform === 'win32' ? 'ffmpeg.exe' : 'ffmpeg'));
 }
+// the camera RAW readers (Blackmagic RAW, RED R3D), RoarPlay's, beside ffmpeg in a Mac build; build/helper when run from the code
+conv.setReaders(app.isPackaged ? path.join(process.resourcesPath, 'bin') : path.join(__dirname, '..', 'build', 'helper'));
+
+// a downloaded app carries the Mac's quarantine mark; the person allowed RoarMorph itself (Open Anyway), but the camera
+// readers in Resources/bin load their makers' libraries, which the Mac refuses to load while marked (as RoarPlay 0.4.1)
+function unquarantineTools() {
+  if (process.platform !== 'darwin' || !app.isPackaged) return;
+  try { require('child_process').execFile('/usr/bin/xattr', ['-dr', 'com.apple.quarantine', path.join(process.resourcesPath, 'bin')], () => {}); } catch {}
+}
 
 let win;
 let quitting = false;
@@ -68,6 +77,7 @@ function offerApplications() {
 }
 
 app.whenReady().then(() => {
+  unquarantineTools();
   if (offerApplications()) return;
   createWindow();
   updater.start(ipcMain, () => { quitting = true; });
@@ -143,6 +153,8 @@ ipcMain.handle('inspect', async (_e, paths) => {
       meta = { width: i.width, height: i.height, duration: i.duration, hasAudio: i.hasAudio, vcodec: i.vcodec, fps: i.fps,
         bitrate: i.bitrate, vbitrate: i.vbitrate, vprofile: i.vprofile, bitDepth: i.bitDepth, chroma: i.chroma,
         acodec: i.acodec, aprofile: i.aprofile, abitrate: i.abitrate, abits: i.abits, sampleRate: i.sampleRate, channelsName: i.channels };
+      // a camera clip: the window cannot show it, so its row gets a frame decoded by its reader
+      if (i.camera) meta.thumb = await conv.cameraThumb(file, i);
     }
     return { file, name: path.basename(file), kind, size, ...meta };
   }));

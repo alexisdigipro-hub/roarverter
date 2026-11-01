@@ -38,3 +38,7 @@ text goes through `t()` or a data-i18n attribute and gets its Greek.
   layers is dropped is renderer.js askLayers. Bit depth shows as "N-bit colour" on every row.
 - For Resolume (Alex, 31 Oct, 0.6.0): VIDEO_FORMATS mov-dxv / mov-hapq / mov-hapa (f.resolume; ffmpeg has no HAP Q Alpha), the frame a multiple of 4 and
   RGBA through pictureGraph's extra filters, HAP with -format and -chunks 4; ffmpeg writes DXV only in normal quality without alpha.
+- Cinema camera RAW (Alex, 1 Nov, 0.7.0): .braw and .R3D through RoarPlay's readers (roarplay helper/braw.cpp, r3d.cpp, built there
+  on the makers' SDKs and proved on Alex's clips), copied from RoarPlay's newest Mac release by scripts/camera-readers.sh into
+  build/helper -> Resources/bin. convert.js probeCamera / cameraInputs (frames on stdin, sound on fd 3, runFfmpeg feeds) /
+  cameraThumb; a fix to how a clip is decoded belongs in RoarPlay first. Tested by test/fake-reader.js. Mac only.

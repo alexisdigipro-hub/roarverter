@@ -85,6 +85,17 @@ beside the first (never over it). Dropping a finished file in again does the sam
 
 The window opens at 1240 x 840 in the middle of the screen for everyone (smaller only on a smaller screen).
 
+## Blackmagic RAW and RED
+Since 0.7.0 (Alex, 1 Nov: "read and convert BRAW and RED here too") a .braw or .R3D clip is dropped like any video:
+its row shows a frame of it, the camera, size, frame rate, length and sound, and it converts to every video, sound and
+still format, with the LUT, the frame, the trims and Resolume's codecs. ffmpeg reads neither; RoarPlay's readers do,
+each built on its maker's SDK (`roarplay-braw` with BlackmagicRawAPI.framework, `roarplay-r3d` with RED's libraries).
+The Mac build takes them ready from RoarPlay's newest Mac release (`scripts/camera-readers.sh`), so the SDKs never
+come here. `convert.js` runs them and pipes the frames (RGBA, RED's BGRA) into ffmpeg's stdin and the sound (PCM)
+into its fd 3 (`cameraInputs`), decoding at a half, a quarter or an eighth when the picture asked for is that much
+smaller (`cameraScale`). The colour is Rec.709 from the camera's settings. `npm test` proves the path with a
+stand-in reader (`test/fake-reader.js`). Mac only; on Windows the clips are named and left out.
+
 ## Settings
 Since 0.5.0 (Alex, 30 Oct: "RoarMorph needs settings and auto update"): the gear at the top right, or Cmd/Ctrl+,.
 Language (English, Ελληνικά); Updates: the version, Check now, Restart to update when one is ready, and Update by
@@ -129,5 +140,6 @@ GitHub's Macs and Windows and puts the files on the release.
 ## Known limits
 - On Windows, HEIC photos from an iPhone may not open, and RAW, JPEG XL and PDF do not open at all yet (a Mac reads
   them through the system's `sips`). HEIC can be saved only on a Mac.
-- RED R3D, Blackmagic RAW and ARRIRAW need their makers' own SDKs and are not read.
+- Blackmagic RAW and RED come out as 8-bit Rec.709 pictures (what RoarPlay's readers give), on a Mac only; ARRIRAW
+  is not read.
 - An animated WebP made from a video cannot be read back by ffmpeg itself, so it shows no size in the list.
