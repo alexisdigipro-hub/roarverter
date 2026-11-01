@@ -16,7 +16,7 @@ const RAW_EXT = ['dng', 'cr2', 'cr3', 'crw', 'nef', 'nrw', 'arw', 'srf', 'sr2', 
 // cinema cameras' RAW clips (Alex, 1 Nov: "read and convert BRAW and RED here too"): RoarPlay's readers, Mac only
 const CAMERA_EXT = ['braw', 'r3d'];
 const MAC_ONLY_EXT = [...RAW_EXT, 'jxl', 'pdf', ...CAMERA_EXT];
-const IMAGE_EXT = ['jpg', 'jpeg', 'png', 'webp', 'avif', 'tif', 'tiff', 'bmp', 'heic', 'heif', 'svg', 'ico', 'jfif', 'tga', 'jp2', 'psd', 'exr', 'dpx', ...MAC_ONLY_EXT];
+const IMAGE_EXT = ['jpg', 'jpeg', 'png', 'webp', 'avif', 'tif', 'tiff', 'bmp', 'heic', 'heif', 'svg', 'ico', 'jfif', 'tga', 'jp2', 'psd', 'exr', 'dpx', ...RAW_EXT, 'jxl', 'pdf'];
 // a GIF is a moving picture (Alex, 26 Oct: "Roarverter does not turn a GIF into a video"): ffmpeg reads it like a clip,
 // so it gets every video format (MP4, MOV, WebM… and GIF or one frame as a picture)
 const VIDEO_EXT = ['gif', 'mp4', 'mov', 'm4v', 'mkv', 'webm', 'avi', 'wmv', 'flv', 'mpg', 'mpeg', 'ts', 'mts', 'm2ts', '3gp', 'ogv', 'vob', 'mxf', 'dv', ...CAMERA_EXT];
