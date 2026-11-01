@@ -105,7 +105,7 @@ main { position: relative; flex: 1; display: flex; gap: 14px; min-height: 0; pad
 .drop-hint { flex: none; display: flex; align-items: center; justify-content: center; gap: 8px; height: 40px; border-radius: 999px; border: 1.5px dashed rgba(255,255,255,.12); color: var(--dim); font-size: 12.5px; }
 .drop-hint svg { width: 15px; height: 15px; }
 
-.item { position: relative; overflow: hidden; display: grid; grid-template-columns: 116px minmax(0, 1fr) auto auto; align-items: center; gap: 14px; padding: 8px 10px 8px 8px; border-radius: 20px; background: var(--glass); border: 1px solid var(--edge); box-shadow: var(--lit); animation: in .5s var(--ease) both; }
+.item { position: relative; overflow: hidden; flex: none; display: grid; grid-template-columns: 116px minmax(0, 1fr) auto auto; align-items: center; gap: 14px; padding: 8px 10px 8px 8px; border-radius: 20px; background: var(--glass); border: 1px solid var(--edge); box-shadow: var(--lit); animation: in .5s var(--ease) both; }
 @keyframes in { from { opacity: 0; transform: translateY(8px) scale(.99); } }
 .item.done { border-color: color-mix(in srgb, var(--ok) 22%, var(--edge)); }
 .item.error { border-color: color-mix(in srgb, var(--acc) 40%, var(--edge)); }
