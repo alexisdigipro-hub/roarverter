@@ -210,6 +210,49 @@ const jobs = [
     if (c.jpegQuality(path.join(T, 'photo.png')) !== 0) bad.push('a PNG has a JPEG quality');
     if (bad.length) { failed++; console.log(`✗ file facts: ${bad.join(', ')}`); } else console.log(`✓ file facts (H.264 ${v.vprofile} ${v.vbitrate} kb/s, JPEG q ${q})`);
   }
+  // cinema camera RAW (Alex, 1 Nov): Blackmagic RAW and RED through stand-ins of RoarPlay's readers
+  // (test/fake-reader.js): the clip's facts, an MP4 with its sound, a trimmed still from the right frame, the
+  // decode size picked for a smaller picture, and a reader's own error when a clip cannot be read
+  {
+    const bin = path.join(T, 'readers');
+    fs.mkdirSync(bin);
+    for (const k of ['braw', 'r3d']) fs.symlinkSync(path.join(__dirname, 'fake-reader.js'), path.join(bin, `roarplay-${k}`));
+    c.setReaders(bin);
+    const sharp = require('sharp');
+    for (const [k, file] of [['braw', 'A001_C002.braw'], ['r3d', 'A037_C062.R3D']]) {
+      const bad = [];
+      const clip = path.join(T, file);
+      fs.writeFileSync(clip, 'camera clip');
+      if (c.kindOf(clip) !== 'video') bad.push(`kind ${c.kindOf(clip)}`);
+      const i = await c.probe(clip);
+      if (i.vcodec !== (k === 'r3d' ? 'redcode' : 'braw') || i.width !== 160 || i.height !== 90 || i.fps !== 24 || Math.abs(i.duration - 2) > 0.01 || !i.hasAudio) bad.push(`facts ${JSON.stringify(i)}`);
+      const mp4 = await c.convertMedia(`${k}-mp4`, clip, { format: 'mp4-h264', quality: 70, suffix: '_mp4', outputDir: O }, () => {});
+      const m = await c.probe(mp4);
+      if (m.vcodec !== 'h264' || m.width !== 160 || !m.hasAudio || Math.abs(m.duration - 2) > 0.15) bad.push(`mp4 ${m.vcodec} ${m.width}x${m.height} sound ${m.hasAudio} ${m.duration}s`);
+      // the frame at 1 s is frame 24: red 120, green 40, blue 200 (BGRA from RED put right)
+      const still = await c.convertMedia(`${k}-png`, clip, { format: 'frame-png', quality: 90, trimStart: 1, suffix: '_still', outputDir: O }, () => {});
+      const px = await sharp(still).raw().toBuffer({ resolveWithObject: true });
+      const [R, G, B] = px.data;
+      if (Math.abs(R - 120) > 6 || Math.abs(G - 40) > 6 || Math.abs(B - 200) > 6) bad.push(`still ${R},${G},${B} (want 120,40,200)`);
+      const wav = await c.convertMedia(`${k}-wav`, clip, { format: 'wav', quality: 90, suffix: '_snd', outputDir: O }, () => {});
+      const w = await c.probe(wav);
+      if (!w.hasAudio || Math.abs(w.duration - 2) > 0.05) bad.push(`sound ${w.hasAudio} ${w.duration}s`);
+      if (bad.length) { failed++; console.log(`✗ ${k}: ${bad.join(', ')}`); } else console.log(`✓ ${k === 'r3d' ? 'RED R3D' : 'Blackmagic RAW'}: facts, MP4 with sound, the right frame, the sound alone`);
+    }
+    const bad = [];
+    const big = { kind: 'braw', width: 12288, height: 6480, fps: 24, audio: null };
+    const half = c.cameraInputs('x.braw', big, 0, { minH: 2160 });
+    if (half.scale !== 2 || half.width !== 6144) bad.push(`4K from 12K: scale ${half.scale}`);
+    if (c.cameraInputs('x.braw', big, 0, { minH: 720 }).scale !== 8) bad.push('720p from 12K not an eighth');
+    if (c.cameraInputs('x.braw', big, 0, {}).scale !== 1) bad.push('full size not 1');
+    const broken = path.join(T, 'broken.braw');
+    fs.writeFileSync(broken, 'x');
+    try { await c.convertMedia('broken', broken, { format: 'mp4-h264', quality: 70, outputDir: O }, () => {}); bad.push('a broken clip converted'); } catch (e) { if (!/Not a Blackmagic RAW clip/.test(e.message)) bad.push(`error: ${e.message}`); }
+    c.setReaders(path.join(T, 'nowhere'));
+    const none = await c.probe(path.join(T, 'A001_C002.braw'));
+    if (!none.error) bad.push('no reader, no error');
+    if (bad.length) { failed++; console.log(`✗ camera decode sizes and errors: ${bad.join(', ')}`); } else console.log('✓ camera decode sizes and errors');
+  }
   fs.rmSync(T, { recursive: true, force: true });
   console.log(failed ? `\n${failed} failed` : '\nall good');
   process.exit(failed ? 1 : 0);

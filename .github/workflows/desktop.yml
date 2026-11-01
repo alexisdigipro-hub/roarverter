@@ -26,6 +26,11 @@ jobs:
         with:
           node-version: 22
       - run: npm install --no-audit --no-fund
+      # the Blackmagic RAW and RED readers, ready from RoarPlay's newest Mac release (scripts/camera-readers.sh)
+      - if: runner.os == 'macOS'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash scripts/camera-readers.sh
       # GitHub's Macs sometimes fail to make a .dmg ("hdiutil: resource busy"): up to three tries
       - if: runner.os == 'macOS'
         shell: bash

@@ -13,11 +13,13 @@ const setFfmpegPath = (p) => { FFMPEG = p; };
 // camera RAW, read through the Mac's own ImageIO (sips); there is no RAW reader on Windows yet
 const RAW_EXT = ['dng', 'cr2', 'cr3', 'crw', 'nef', 'nrw', 'arw', 'srf', 'sr2', 'raf', 'orf', 'rw2', 'pef', 'srw', '3fr', 'fff', 'iiq', 'mos', 'erf', 'dcr', 'mrw', 'rwl', 'x3f'];
 // read only on a Mac (sips): JPEG XL and a PDF's first page
-const MAC_ONLY_EXT = [...RAW_EXT, 'jxl', 'pdf'];
+// cinema cameras' RAW clips (Alex, 1 Nov: "read and convert BRAW and RED here too"): RoarPlay's readers, Mac only
+const CAMERA_EXT = ['braw', 'r3d'];
+const MAC_ONLY_EXT = [...RAW_EXT, 'jxl', 'pdf', ...CAMERA_EXT];
 const IMAGE_EXT = ['jpg', 'jpeg', 'png', 'webp', 'avif', 'tif', 'tiff', 'bmp', 'heic', 'heif', 'svg', 'ico', 'jfif', 'tga', 'jp2', 'psd', 'exr', 'dpx', ...MAC_ONLY_EXT];
 // a GIF is a moving picture (Alex, 26 Oct: "Roarverter does not turn a GIF into a video"): ffmpeg reads it like a clip,
 // so it gets every video format (MP4, MOV, WebM… and GIF or one frame as a picture)
-const VIDEO_EXT = ['gif', 'mp4', 'mov', 'm4v', 'mkv', 'webm', 'avi', 'wmv', 'flv', 'mpg', 'mpeg', 'ts', 'mts', 'm2ts', '3gp', 'ogv', 'vob', 'mxf', 'dv'];
+const VIDEO_EXT = ['gif', 'mp4', 'mov', 'm4v', 'mkv', 'webm', 'avi', 'wmv', 'flv', 'mpg', 'mpeg', 'ts', 'mts', 'm2ts', '3gp', 'ogv', 'vob', 'mxf', 'dv', ...CAMERA_EXT];
 const AUDIO_EXT = ['mp3', 'wav', 'm4a', 'aac', 'flac', 'ogg', 'opus', 'wma', 'aiff', 'aif', 'caf', 'ac3'];
 
 const running = new Map(); // id -> child process
@@ -28,6 +30,97 @@ function kindOf(file) {
   if (VIDEO_EXT.includes(ext)) return 'video';
   if (AUDIO_EXT.includes(ext)) return 'audio';
   return null;
+}
+
+// ---------- Cinema camera RAW: Blackmagic RAW and RED R3D ----------
+// ffmpeg reads neither. RoarPlay's readers do, each built on its maker's SDK (roarplay helper/braw.cpp, helper/r3d.cpp;
+// the SDKs never enter a repository): `info <clip>` prints the clip's facts as one line of JSON, `video <clip> <first
+// frame> <scale>` writes the decoded frames (RGBA from BRAW, BGRA from RED, 8-bit) and `audio <clip> <first sample>`
+// the sound as PCM. desktop.yml copies them from RoarPlay's newest Mac release into Resources/bin; here they are piped
+// into ffmpeg as rawvideo (stdin) and PCM (fd 3), so every format, the LUT, the frame and the trims work on them.
+const READER = { braw: '', r3d: '' };
+function setReaders(dir) {
+  for (const k of CAMERA_EXT) { const p = path.join(dir, `roarplay-${k}`); READER[k] = fs.existsSync(p) ? p : ''; }
+}
+const setReader = (kind, p) => { READER[kind] = p || ''; };
+function cameraOf(file) {
+  const ext = path.extname(file).slice(1).toLowerCase();
+  return CAMERA_EXT.includes(ext) ? ext : null;
+}
+const CAMERA_NAME = { braw: 'Blackmagic RAW', r3d: 'RED' };
+
+function readerInfo(kind, file) {
+  return new Promise((resolve) => {
+    if (!READER[kind]) return resolve({ error: IS_MAC ? `This copy of RoarMorph cannot read ${CAMERA_NAME[kind]}. Update RoarMorph and try again.` : `${CAMERA_NAME[kind]} opens only on a Mac for now` });
+    execFile(READER[kind], ['info', file], { timeout: 60000 }, (e, out, err) => {
+      try { resolve(JSON.parse(String(out).trim().split('\n').pop())); } catch { resolve({ error: String(err || e?.message || 'Cannot read the clip').trim().split('\n').pop() }); }
+    });
+  });
+}
+
+async function probeCamera(file, kind) {
+  const b = await readerInfo(kind, file);
+  if (b.error || !b.width) return { error: b.error || `Not a ${CAMERA_NAME[kind]} clip`, duration: 0, hasVideo: false, hasAudio: false, width: 0, height: 0, fps: 0, bitrate: 0 };
+  const fps = b.fps || 24;
+  const duration = (b.frames || 0) / fps;
+  const a = b.audio && b.audio.channels ? b.audio : null;
+  let size = 0;
+  try { size = fs.statSync(file).size; } catch {}
+  const kbps = duration > 0 ? Math.round((size * 8) / duration / 1000) : 0;
+  return {
+    camera: { ...b, kind, fps },
+    duration, hasVideo: true, vcodec: kind === 'r3d' ? 'redcode' : 'braw', vprofile: b.camera || undefined,
+    width: b.width, height: b.height, fps, bitrate: kbps, vbitrate: kbps,
+    hasAudio: !!a, acodec: a ? `pcm_s${a.bits > 24 ? 32 : a.bits > 16 ? 24 : 16}le` : undefined, abits: a ? a.bits : 0,
+    sampleRate: a ? a.rate : 0, channels: a ? (a.channels === 1 ? 'mono' : a.channels === 2 ? 'stereo' : `${a.channels} channels`) : undefined,
+    timecode: b.timecode || '',
+  };
+}
+
+// the size the SDK decodes at (1, 2, 4 or 8 times smaller): the smallest that is still at least `minH` tall
+function cameraScale(h, minH) {
+  let s = 1;
+  if (minH > 0) while (s < 8 && Math.floor(h / (s * 2)) >= minH) s *= 2;
+  return s;
+}
+
+// what the readers are run with and what ffmpeg is told about their pipes, from `start` seconds:
+// the picture on stdin (input 0), the sound on fd 3 (input 1), or the sound alone on stdin
+function cameraInputs(file, cam, start, { video = true, audio = false, minH = 0 } = {}) {
+  const red = cam.kind === 'r3d';
+  const s = cameraScale(cam.height, minH);
+  const w = Math.floor(cam.width / s), h = Math.floor(cam.height / s);
+  const args = [], feeds = [];
+  if (video) {
+    const frame = Math.max(0, Math.round(start * cam.fps));
+    feeds.push({ bin: READER[cam.kind], args: red ? ['video', file, String(frame), String(s)] : ['video', file, String(frame), String(s), '709'], fd: 0 });
+    args.push('-f', 'rawvideo', '-pix_fmt', red ? 'bgra' : 'rgba', '-s', `${w}x${h}`, '-r', String(cam.fps), '-i', 'pipe:0');
+  }
+  if (audio && cam.audio && cam.audio.channels) {
+    const a = cam.audio, fmt = a.bits > 24 ? 's32le' : a.bits > 16 ? 's24le' : 's16le';
+    const fd = video ? 3 : 0;
+    feeds.push({ bin: READER[cam.kind], args: ['audio', file, String(Math.max(0, Math.round(start * a.rate)))], fd });
+    args.push('-f', fmt, '-ar', String(a.rate), '-ac', String(a.channels), '-i', `pipe:${fd}`);
+  }
+  return { args, feeds, scale: s, width: w, height: h, audioInput: video ? 1 : 0 };
+}
+
+// a small picture of a camera clip for its row: one frame a second in, as a JPEG in the temporary folder
+function cameraThumb(file, info) {
+  return new Promise((resolve) => {
+    const cam = info && info.camera;
+    if (!cam) return resolve(null);
+    const at = Math.min(1, Math.max(0, info.duration - 1 / cam.fps));
+    const src = cameraInputs(file, cam, at, { minH: 180 });
+    const out = tmpFile('jpg');
+    const p = spawn(FFMPEG, ['-hide_banner', '-loglevel', 'error', '-y', ...src.args, '-frames:v', '1', '-vf', 'scale=320:-2', '-q:v', '4', out], { stdio: ['pipe', 'ignore', 'ignore'] });
+    const r = spawn(src.feeds[0].bin, src.feeds[0].args, { stdio: ['ignore', 'pipe', 'ignore'] });
+    r.stdout.on('error', () => {}); p.stdin.on('error', () => {}); r.on('error', () => {});
+    r.stdout.pipe(p.stdin);
+    const timer = setTimeout(() => p.kill('SIGKILL'), 60000);
+    p.on('error', () => resolve(null));
+    p.on('close', (code) => { clearTimeout(timer); r.kill('SIGKILL'); resolve(code === 0 && fs.existsSync(out) ? out : null); });
+  });
 }
 
 function cancel(id) {
@@ -116,6 +209,8 @@ function jpegQuality(file) {
 }
 
 function probe(file) {
+  const kind = cameraOf(file);
+  if (kind) return probeCamera(file, kind);
   return new Promise((resolve) => {
     execFile(FFMPEG, ['-hide_banner', '-i', file], { maxBuffer: 10 * 1024 * 1024 }, (_err, _out, stderr) => {
       const video = /Stream #.*Video: ([^,\s]+).*?, (\d{2,5})x(\d{2,5})/.exec(stderr);
@@ -143,10 +238,22 @@ function probe(file) {
   });
 }
 
-function runFfmpeg(id, args, duration, onProgress) {
+// `feeds`: programs whose output ffmpeg reads on a pipe (a camera clip's readers), started with it and stopped with it
+function runFfmpeg(id, args, duration, onProgress, feeds = []) {
   return new Promise((resolve, reject) => {
-    const p = spawn(FFMPEG, ['-hide_banner', '-y', '-nostats', '-progress', 'pipe:1', ...args]);
+    const stdio = ['pipe', 'pipe', 'pipe', ...(feeds.some((f) => f.fd === 3) ? ['pipe'] : [])];
+    const p = spawn(FFMPEG, ['-hide_banner', '-y', '-nostats', '-progress', 'pipe:1', ...args], { stdio });
     running.set(id, p);
+    let readerErr = '';
+    const kids = feeds.map((f) => {
+      const k = spawn(f.bin, f.args, { stdio: ['ignore', 'pipe', 'pipe'] });
+      const into = p.stdio[f.fd];
+      into.on('error', () => {}); k.stdout.on('error', () => {}); k.on('error', (e) => { readerErr = e.message; });
+      k.stdout.pipe(into);
+      k.stderr.on('data', (d) => { readerErr = (readerErr + d.toString()).slice(-1000); });
+      return k;
+    });
+    if (!feeds.some((f) => f.fd === 0)) p.stdin.end();
     let err = '';
     let buf = '';
     p.stdout.on('data', (d) => {
@@ -161,8 +268,12 @@ function runFfmpeg(id, args, duration, onProgress) {
     p.stderr.on('data', (d) => { err = (err + d.toString()).slice(-4000); });
     p.on('close', (code, signal) => {
       running.delete(id);
+      for (const k of kids) k.kill('SIGKILL');
       if (p.cancelled) return reject(new Error('Cancelled'));
       if (code === 0) return resolve();
+      // a reader that could not decode says why better than ffmpeg, which only saw its pipe end
+      const said = readerErr.trim().split('\n').filter((l) => !/^braw \S+: asked /.test(l)).pop();
+      if (said) return reject(new Error(said));
       const lastLines = err.trim().split('\n').slice(-3).join(' | ');
       reject(new Error(lastLines || `ffmpeg exit ${code ?? signal}`));
     });
@@ -480,11 +591,28 @@ async function convertMedia(id, input, o, onProgress) {
   const f = VIDEO_FORMATS[o.format];
   if (!f) throw new Error(`Unknown format: ${o.format}`);
   const info = await probe(input);
+  if (info.error) throw new Error(info.error);
   const out = outputPathFor(input, f.ext, o);
   const args = [];
-
-  if (o.trimStart) args.push('-ss', String(o.trimStart));
-  args.push('-i', input);
+  const cam = info.camera;
+  // where the sound is among ffmpeg's inputs (a camera clip's sound comes on its own pipe)
+  let soundIn = 0;
+  if (cam) {
+    // a camera clip: its readers from the first frame of the trim, decoded no bigger than the picture asked for needs
+    const sound = !!f.audio || (!f.frame && !f.gif && !f.anim && !o.removeAudio && info.hasAudio);
+    const tall = cam.height, wide = cam.width;
+    let minH = 0;
+    if (f.gif || f.anim) minH = Math.ceil(((o.gifWidth || 640) * tall) / wide);
+    else if (!o.aspect && !(o.width && o.height) && o.resolution) minH = wide >= tall ? o.resolution : Math.ceil((o.resolution * tall) / wide);
+    const src = cameraInputs(input, cam, o.trimStart || 0, { video: !f.audio, audio: sound, minH });
+    args.push(...src.args);
+    info.feeds = src.feeds;
+    info.width = src.width; info.height = src.height;
+    soundIn = src.audioInput;
+  } else {
+    if (o.trimStart) args.push('-ss', String(o.trimStart));
+    args.push('-i', input);
+  }
   if (o.trimEnd && o.trimEnd > (o.trimStart || 0)) args.push('-t', String(o.trimEnd - (o.trimStart || 0)));
 
   let duration = info.duration;
@@ -497,7 +625,7 @@ async function convertMedia(id, input, o, onProgress) {
     args.push('-vn', '-c:a', f.audio);
     if (['libmp3lame', 'aac', 'libopus'].includes(f.audio)) args.push('-b:a', `${o.audioBitrate || 192}k`);
     args.push(...soundArgs(o, f.ar), out);
-    await runFfmpeg(id, args, duration, onProgress);
+    await runFfmpeg(id, args, duration, onProgress, info.feeds);
     return out;
   }
 
@@ -508,7 +636,7 @@ async function convertMedia(id, input, o, onProgress) {
     args.push('-filter_complex', pictureGraph(o, info), '-map', '[v]');
     if (f.ext === 'jpg') args.push('-q:v', String(Math.round(2 + (1 - o.quality / 100) * 20)));
     args.push('-frames:v', '1', '-update', '1', out);
-    await runFfmpeg(id, args, 0, () => {});
+    await runFfmpeg(id, args, 0, () => {}, info.feeds);
     return out;
   }
 
@@ -520,7 +648,7 @@ async function convertMedia(id, input, o, onProgress) {
     args.push('-filter_complex', pictureGraph({ ...o, resolution: 0, width: 0, height: 0 }, info,
       [`fps=${fps}`, `scale=${w}:-1:flags=lanczos`, `split[a][b];[a]palettegen=max_colors=${colors}:stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=4`]),
     '-map', '[v]', '-loop', '0', out);
-    await runFfmpeg(id, args, duration, onProgress);
+    await runFfmpeg(id, args, duration, onProgress, info.feeds);
     return out;
   }
 
@@ -529,7 +657,7 @@ async function convertMedia(id, input, o, onProgress) {
     const w = Math.min(info.width || 480, o.gifWidth || 640);
     args.push('-filter_complex', pictureGraph({ ...o, resolution: 0, width: 0, height: 0 }, info, [`fps=${fps}`, `scale=${w}:-1:flags=lanczos`]),
       '-map', '[v]', '-c:v', 'libwebp_anim', '-quality', String(Math.round(o.quality)), '-loop', '0', '-an', out);
-    await runFfmpeg(id, args, duration, onProgress);
+    await runFfmpeg(id, args, duration, onProgress, info.feeds);
     return out;
   }
 
@@ -538,7 +666,7 @@ async function convertMedia(id, input, o, onProgress) {
   if (f.resolume && !(await hasEncoder(f.v))) throw new Error(f.v === 'dxv' ? 'This copy of RoarMorph cannot write DXV. Update RoarMorph and try again.' : 'This copy of RoarMorph cannot write HAP. Update RoarMorph and try again.');
   args.push('-filter_complex', pictureGraph(o, info, [...(o.fps ? [`fps=${o.fps}`] : []), ...live]), '-map', '[v]');
   const sound = !o.removeAudio && info.hasAudio;
-  if (sound) args.push('-map', '0:a:0');
+  if (sound) args.push('-map', `${soundIn}:a:0`);
 
   const base = args.slice();
   const v = await videoEncoder(f.v, o.hw);
@@ -616,7 +744,8 @@ async function encodeVideo(id, base, v, f, o, info, duration, out, onProgress) {
   if (['mp4', 'mov'].includes(f.ext)) args.push('-movflags', '+faststart');
   args.push('-map_metadata', o.keepMetadata ? '0' : '-1');
 
-  if (o.twoPass && byRate && TWO_PASS.includes(v)) {
+  // (not for a camera clip: its readers would be run twice for a picture that has to be decoded twice)
+  if (o.twoPass && byRate && TWO_PASS.includes(v) && !info.camera) {
     // two passes: the first only measures, so the second spends the bits where the picture needs them
     const log = tmpFile('2pass').replace(/\.2pass$/, '');
     const pass = (n) => (v === 'libx265' ? ['-x265-params', `pass=${n}:stats=${log}.log`] : ['-pass', String(n), '-passlogfile', log]);
@@ -630,10 +759,10 @@ async function encodeVideo(id, base, v, f, o, info, duration, out, onProgress) {
   }
 
   args.push(out);
-  await runFfmpeg(id, args, duration, onProgress);
+  await runFfmpeg(id, args, duration, onProgress, info.feeds);
   return out;
 }
 
 module.exports = {
-  IMAGE_EXT, VIDEO_EXT, AUDIO_EXT, MAC_ONLY_EXT, setFfmpegPath, kindOf, probe, streamFacts, jpegQuality, splitPsdLayers, convertImage, convertMedia, cancel, cancelAll,
+  IMAGE_EXT, VIDEO_EXT, AUDIO_EXT, MAC_ONLY_EXT, CAMERA_EXT, setFfmpegPath, setReaders, setReader, cameraOf, cameraScale, cameraInputs, cameraThumb, kindOf, probe, streamFacts, jpegQuality, splitPsdLayers, convertImage, convertMedia, cancel, cancelAll,
 };
