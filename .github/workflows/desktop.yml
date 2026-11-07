@@ -45,6 +45,7 @@ jobs:
         run: npm run dist:win
       - uses: actions/upload-artifact@v4
         with:
+          retention-days: 1
           name: roarverter-${{ runner.os }}
           path: |
             out/*.dmg
