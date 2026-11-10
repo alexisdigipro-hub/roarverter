@@ -86,6 +86,8 @@ beside the first (never over it). Dropping a finished file in again does the sam
 The window opens at 1240 x 840 in the middle of the screen for everyone (smaller only on a smaller screen).
 
 ## Blackmagic RAW and RED
+0.7.1 (10 Nov): a new icon, a square turning into a circle in plain white on off-black (the Lab's one family of icons).
+
 Since 0.7.0 (Alex, 1 Nov: "read and convert BRAW and RED here too") a .braw or .R3D clip is dropped like any video:
 its row shows a frame of it, the camera, size, frame rate, length and sound, and it converts to every video, sound and
 still format, with the LUT, the frame, the trims and Resolume's codecs. ffmpeg reads neither; RoarPlay's readers do,
